@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+<interfaceDefinition>
+  <node name="show">
+    <children>
+      <node name="zt">
+        <properties>
+          <help>Show ZeroTier information</help>
+        </properties>
+        <children>
+          <node name="status">
+            <properties>
+              <help>Show status info</help>
+            </properties>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --info</command>
+            <children>
+              <leafNode name="detail">
+                <properties>
+                  <help>Show detailed status info</help>
+                </properties>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --status</command>
+              </leafNode>
+            </children>
+          </node>
+          <node name="network">
+            <properties>
+              <help>Show networks</help>
+            </properties>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --network</command>
+          </node>
+          <tagNode name="network">
+            <properties>
+              <help>Show specific network</help>
+              <completionHelp>
+                <path>vpn zt network</path>
+              </completionHelp>
+            </properties>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --network $4</command>
+            <children>
+              <leafNode name="routes">
+                <properties>
+                  <help>Show controller managed routes</help>
+                </properties>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --network $4 routes</command>
+              </leafNode>
+            </children>
+          </tagNode>
+          <node name="peer">
+            <properties>
+              <help>Show peers</help>
+            </properties>
+            <command>sudo /usr/local/bin/zerotier-cli peers</command>
+          </node>
+          <tagNode name="peer">
+            <properties>
+              <help>Show specific peer</help>
+            </properties>
+            <completionHelp>
+              <list>&lt;hhhhhhhhhh&gt;</list>
+            </completionHelp>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --peer $4</command>
+            <children>
+              <leafNode name="paths">
+                <properties>
+                  <help>Show paths</help>
+                </properties>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --peer $4 paths</command>
+              </leafNode>
+            </children>
+          </tagNode>
+          <node name="moon">
+            <properties>
+              <help>Show moons</help>
+            </properties>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --moon</command>
+          </node>
+          <tagNode name="moon">
+            <properties>
+              <help>Show specific moon</help>
+            </properties>
+            <completionHelp>
+              <!--TODO: create configuration mode for moons -->
+              <path>vpn zt moon</path>
+            </completionHelp>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --moon $4</command>
+            <children>
+              <leafNode name="roots">
+                <properties>
+                  <help>Show root definitions</help>
+                </properties>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --moon $4 roots</command>
+              </leafNode>
+            </children>
+          </tagNode>
+        </children>
+      </node>
+    </children>
+  </node>
+</interfaceDefinition>
