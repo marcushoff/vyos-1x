@@ -1,0 +1,359 @@
+<?xml version="1.0"?>
+<interfaceDefinition>
+  <node name="vpn">
+    <children>
+      <node name="zt" owner="${vyos_conf_scripts_dir}/vpn_zerotier.py">
+        <properties>
+          <help>ZeroTier Virtual Private Network (VPN)</help>
+        </properties>
+        <children>
+          <tagNode name="network">
+            <properties>
+              <help>ZeroTier network</help>
+              <constraint>
+                <regex>^[a-f0-9]{16}$</regex>
+              </constraint>
+              <constraintErrorMessage>Must be a 16 digit hex number</constraintErrorMessage>
+              <valueHelp>
+                <format>hhhhhhhhhhhhhhhh</format>
+                <description>ZeroTier network ID</description>
+              </valueHelp>
+            </properties>
+            <children>
+              <leafNode name="description">
+                <properties>
+                  <help>Network specific description</help>
+                  <constraint>
+                    <regex>.{1,256}$</regex>
+                  </constraint>
+                  <constraintErrorMessage>Description too long (limit 256 characters)</constraintErrorMessage>
+                </properties>
+              </leafNode>
+              <leafNode name="managed">
+                <properties>
+                  <help>Controller managed IP and route assignment</help>
+                  <completionHelp>
+                    <list>enable disable</list>
+                  </completionHelp>
+                  <valueHelp>
+                    <format>enable</format>
+                    <description>Enable controller management (default)</description>
+                  </valueHelp>
+                  <valueHelp>
+                    <format>disable</format>
+                    <description>Disable controller management</description>
+                  </valueHelp>
+                  <constraint>
+                    <regex>(enable|disable)</regex>
+                  </constraint>
+                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                </properties>
+              </leafNode>
+              <leafNode name="global">
+                <properties>
+                  <help>Controller managed IP and routes can overlap public IP space</help>
+                  <completionHelp>
+                    <list>enable disable</list>
+                  </completionHelp>
+                  <valueHelp>
+                    <format>enable</format>
+                    <description>Enable overlap of public IP space</description>
+                  </valueHelp>
+                  <valueHelp>
+                    <format>disable</format>
+                    <description>Disable overlap of public IP space (default)</description>
+                  </valueHelp>
+                  <constraint>
+                    <regex>(enable|disable)</regex>
+                  </constraint>
+                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                </properties>
+              </leafNode>
+              <leafNode name="default">
+                <properties>
+                  <help>Network can override system default route (full tunnel)</help>
+                  <completionHelp>
+                    <list>enable disable</list>
+                  </completionHelp>
+                  <valueHelp>
+                    <format>enable</format>
+                    <description>Enable override default route</description>
+                  </valueHelp>
+                  <valueHelp>
+                    <format>disable</format>
+                    <description>Disable override default route (default)</description>
+                  </valueHelp>
+                  <constraint>
+                    <regex>(enable|disable)</regex>
+                  </constraint>
+                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                </properties>
+              </leafNode>
+            </children>
+          </tagNode>
+          <tagNode name="physical">
+            <properties>
+              <help>Physical network path</help>
+              <constraint>
+                <validator name="ipv4-prefix"/>
+                <validator name="ipv6-prefix"/>
+              </constraint>
+              <constraintErrorMessage>Not a valid CIDR formatted prefix</constraintErrorMessage>
+              <valueHelp>
+                <format>ipv4net</format>
+                <description>IPv4 network and prefix length</description>
+              </valueHelp>
+              <valueHelp>
+                <format>ipv6net</format>
+                <description>IPv6 network and prefix length</description>
+              </valueHelp>
+            </properties>
+            <children>
+              <leafNode name="blacklist">
+                <properties>
+                  <help>Blacklist path</help>
+                  <completionHelp>
+                    <list>enable disable</list>
+                  </completionHelp>
+                  <valueHelp>
+                    <format>enable</format>
+                    <description>Blacklist this path for ZeroTier traffic</description>
+                  </valueHelp>
+                  <valueHelp>
+                    <format>disable</format>
+                    <description>Don't blacklist this path for ZeroTier traffic (default)</description>
+                  </valueHelp>
+                  <constraint>
+                    <regex>(enable|disable)</regex>
+                  </constraint>
+                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                </properties>
+              </leafNode>
+              <leafNode name="trusted-path-id">
+                <properties>
+                  <help>Trusted path ID</help>
+                  <constraint>
+                    <validator name="numeric" argument="--range 1-2000000000"/>
+                  </constraint>
+                  <constraintErrorMessage>Must be a non-negative number</constraintErrorMessage>
+                  <valueHelp>
+                    <format>1-2000000000</format>
+                    <description>Numeric ID</description>
+                  </valueHelp>
+                </properties>
+              </leafNode>
+              #include <include/interface-mtu-68-9000.xml.i>
+            </children>
+          </tagNode>
+          <tagNode name="virtual">
+            <properties>
+              <help>Virtual network device (VL1)</help>
+              <constraint>
+                <regex>^[a-f0-9]{10}$</regex>
+              </constraint>
+              <constraintErrorMessage>Must be a 10 digit hex number</constraintErrorMessage>
+              <valueHelp>
+                <format>hhhhhhhhhh</format>
+                <description>ZeroTier address</description>
+              </valueHelp>
+            </properties>
+            <children>
+              <node name="try">
+                <properties>
+                  <help>Hints to reach this peer</help>
+                </properties>
+                <children>
+                  <tagNode name="address">
+                    <properties>
+                      <help>IP address</help>
+                      <constraint>
+                        <validator name="ip-address"/>
+                      </constraint>
+                      <constraintErrorMessage>Must be and IPv4 or IPv6 address</constraintErrorMessage>
+                      <valueHelp>
+                        <format>ipv4</format>
+                        <description>IPv4 address</description>
+                      </valueHelp>
+                      <valueHelp>
+                        <format>ipv6</format>
+                        <description>IPv6 address</description>
+                      </valueHelp>
+                    </properties>
+                    <children>
+                      #include <include/port-number.xml.i>
+                    </children>
+                  </tagNode>
+                </children>
+              </node>
+              <node name="blacklist">
+                <properties>
+                  <help>Blacklist for this peer</help>
+                </properties>
+                <children>
+                  <leafNode name="path">
+                    <properties>
+                      <help>Physical network path</help>
+                      <constraint>
+                        <validator name="ipv4-prefix"/>
+                        <validator name="ipv6-prefix"/>
+                      </constraint>
+                      <constraintErrorMessage>Not a valid CIDR formatted prefix</constraintErrorMessage>
+                      <valueHelp>
+                        <format>ipv4net</format>
+                        <description>IPv4 network and prefix length</description>
+                      </valueHelp>
+                      <valueHelp>
+                        <format>ipv6net</format>
+                        <description>IPv6 network and prefix length</description>
+                      </valueHelp>
+                      <multi/>
+                    </properties>
+                  </leafNode>
+                </children>
+              </node>
+            </children>
+          </tagNode>
+          <leafNode name="primary-port">
+            <properties>
+              <help>Override default port</help>
+              <constraint>
+                <validator name="numeric" argument="--range 1-65535"/>
+              </constraint>
+              <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
+              <valueHelp>
+                <format>1-65535</format>
+                <description>Numeric IP port</description>
+              </valueHelp>
+            </properties>
+          </leafNode>
+          <leafNode name="secondary-port">
+            <properties>
+              <help>Override default secondary port</help>
+              <constraint>
+                <validator name="numeric" argument="--range 1-65535"/>
+              </constraint>
+              <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
+              <valueHelp>
+                <format>1-65535</format>
+                <description>Numeric IP port</description>
+              </valueHelp>
+            </properties>
+          </leafNode>
+          <leafNode name="tertiary-port">
+            <properties>
+              <help>Override default tertiary port</help>
+              <constraint>
+                <validator name="numeric" argument="--range 1-65535"/>
+              </constraint>
+              <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
+              <valueHelp>
+                <format>1-65535</format>
+                <description>Numeric IP port</description>
+              </valueHelp>
+            </properties>
+          </leafNode>
+          <leafNode name="port-mapping">
+            <properties>
+              <help>Try to map firewall ports</help>
+              <completionHelp>
+                <list>enable disable</list>
+              </completionHelp>
+              <valueHelp>
+                <format>enable</format>
+                <description>Try to use uPnP or NAT-PMP to map ports (default)</description>
+              </valueHelp>
+              <valueHelp>
+                <format>disable</format>
+                <description>Don't try to use uPnP or NAT-PMP to map ports</description>
+              </valueHelp>
+              <constraint>
+                <regex>(enable|disable)</regex>
+              </constraint>
+              <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+            </properties>
+          </leafNode>
+          <leafNode name="use-secondary-port">
+            <properties>
+              <help>Allow secondary port use</help>
+              <completionHelp>
+                <list>enable disable</list>
+              </completionHelp>
+              <valueHelp>
+                <format>enable</format>
+                <description>Enable secondary port use (default)</description>
+              </valueHelp>
+              <valueHelp>
+                <format>disable</format>
+                <description>Disable secondary port use</description>
+              </valueHelp>
+              <constraint>
+                <regex>(enable|disable)</regex>
+              </constraint>
+              <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+            </properties>
+          </leafNode>
+          <node name="blacklist">
+            <properties>
+              <help>Blacklist interfaces for ZeroTier traffic</help>
+            </properties>
+            <children>
+              <leafNode name="interface">
+                <properties>
+                  <help>Interface name</help>
+                  <completionHelp>
+                    <script>${vyos_completion_dir}/list_interfaces.py</script>
+                  </completionHelp>
+                  <multi/>
+                </properties>
+              </leafNode>
+            </children>
+          </node>
+          <leafNode name="tcp-fallback-relay">
+            <properties>
+              <help>Establish TCP relay connections</help>
+              <completionHelp>
+                <list>enable disable</list>
+              </completionHelp>
+              <valueHelp>
+                <format>enable</format>
+                <description>Enable establishment of TCP relay connections (default)</description>
+              </valueHelp>
+              <valueHelp>
+                <format>disable</format>
+                <description>Disable establishment of TCP relay connections</description>
+              </valueHelp>
+              <constraint>
+                <regex>(enable|disable)</regex>
+              </constraint>
+              <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+            </properties>
+          </leafNode>
+          <leafNode name="multipath-mode">
+            <properties>
+              <help>Multipath mode</help>
+              <completionHelp>
+                <list>none random proportional</list>
+              </completionHelp>
+              <valueHelp>
+                <format>none</format>
+                <description>Don't use multipath (default)</description>
+              </valueHelp>
+              <valueHelp>
+                <format>random</format>
+                <description>Send traffic over random paths</description>
+              </valueHelp>
+              <valueHelp>
+                <format>proportional</format>
+                <description>Allocate traffic across paths proportional to the quality</description>
+              </valueHelp>
+              <constraint>
+                <regex>(none|random|proportional)</regex>
+              </constraint>
+              <constraintErrorMessage>Must be 'none', 'random' or 'proportional'</constraintErrorMessage>
+            </properties>
+          </leafNode>
+        </children>
+      </node>
+    </children>
+  </node>
+</interfaceDefinition>

@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<interfaceDefinition>
+  <node name="interfaces">
+    <children>
+      <tagNode name="zt" owner="${vyos_conf_scripts_dir}/interfaces-zerotier.py">
+        <properties>
+          <help>ZeroTier Interface</help>
+          <priority>485</priority>
+          <constraint>
+            <regex>^zt[0-9a-z]+$</regex>
+          </constraint>
+          <constraintErrorMessage>ZeroTier interface must be named ztXXX+</constraintErrorMessage>
+          <valueHelp>
+            <format>ztXXX+</format>
+            <description>ZeroTier interface name</description>
+          </valueHelp>
+        </properties>
+        <children>
+          #include <include/address-ipv4-ipv6.xml.i>
+          #include <include/interface-description.xml.i>
+          #include <include/interface-disable.xml.i>
+          <node name="ipv6">
+            <children>
+              #include <include/ipv6-address.xml.i>
+              #include <include/ipv6-disable-forwarding.xml.i>
+              #include <include/ipv6-dup-addr-detect-transmits.xml.i>
+            </children>
+          </node>
+          #include <include/interface-mtu-68-9000.xml.i>
+        </children>
+      </tagNode>
+    </children>
+  </node>
+</interfaceDefinition>
