@@ -53,10 +53,10 @@
           <tagNode name="peer">
             <properties>
               <help>Show specific peer</help>
+              <completionHelp>
+                <list>&lt;hhhhhhhhhh&gt;</list>
+              </completionHelp>
             </properties>
-            <completionHelp>
-              <list>&lt;hhhhhhhhhh&gt;</list>
-            </completionHelp>
             <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --peer $4</command>
             <children>
               <leafNode name="paths">
@@ -76,11 +76,11 @@
           <tagNode name="moon">
             <properties>
               <help>Show specific moon</help>
+              <completionHelp>
+                <!--TODO: create configuration mode for moons -->
+                <path>vpn zt moon</path>
+              </completionHelp>
             </properties>
-            <completionHelp>
-              <!--TODO: create configuration mode for moons -->
-              <path>vpn zt moon</path>
-            </completionHelp>
             <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --moon $4</command>
             <children>
               <leafNode name="roots">
