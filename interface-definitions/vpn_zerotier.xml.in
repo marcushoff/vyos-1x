@@ -264,7 +264,7 @@
               </valueHelp>
               <valueHelp>
                 <format>disable</format>
-                <description>Don't try to use uPnP or NAT-PMP to map ports</description>
+                <description>Do not try to use uPnP or NAT-PMP to map ports</description>
               </valueHelp>
               <constraint>
                 <regex>(enable|disable)</regex>
