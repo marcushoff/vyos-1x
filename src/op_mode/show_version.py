@@ -18,13 +18,12 @@
 #    Displays image version and system information.
 #    Used by the "run show version" command.
 
-import sys
 import argparse
-import json
-
 import vyos.version
 import vyos.limericks
 
+from jinja2 import Template
+from sys import exit
 from vyos.util import call
 
 parser = argparse.ArgumentParser()
@@ -33,22 +32,22 @@ parser.add_argument("-f", "--funny", action="store_true", help="Add something fu
 parser.add_argument("-j", "--json", action="store_true", help="Produce JSON output")
 
 version_output_tmpl = """
-Version:          VyOS {version}
-Release Train:    {release_train}
+Version:          VyOS {{version}}
+Release Train:    {{release_train}}
 
-Built by:         {built_by}
-Built on:         {built_on}
-Build UUID:       {build_uuid}
-Build Commit ID:  {build_git}
+Built by:         {{built_by}}
+Built on:         {{built_on}}
+Build UUID:       {{build_uuid}}
+Build Commit ID:  {{build_git}}
 
-Architecture:     {system_arch}
-Boot via:         {boot_via}
-System type:      {system_type}
+Architecture:     {{system_arch}}
+Boot via:         {{boot_via}}
+System type:      {{system_type}}
 
-Hardware vendor:  {hardware_vendor}
-Hardware model:   {hardware_model}
-Hardware S/N:     {hardware_serial}
-Hardware UUID:    {hardware_uuid}
+Hardware vendor:  {{hardware_vendor}}
+Hardware model:   {{hardware_model}}
+Hardware S/N:     {{hardware_serial}}
+Hardware UUID:    {{hardware_uuid}}
 
 Copyright:        VyOS maintainers and contributors
 """
@@ -59,10 +58,12 @@ if __name__ == '__main__':
     version_data = vyos.version.get_full_version_data()
 
     if args.json:
+        import json
         print(json.dumps(version_data))
-        sys.exit(0)
+        exit(0)
 
-    print(version_output_tmpl.format(**version_data).strip())
+    tmpl = Template(version_output_tmpl)
+    print(tmpl.render(version_data))
 
     if args.all:
         print("Package versions:")

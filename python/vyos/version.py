@@ -1,4 +1,4 @@
-# Copyright 2017 VyOS maintainers and contributors <maintainers@vyos.io>
+# Copyright 2017-2020 VyOS maintainers and contributors <maintainers@vyos.io>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -31,7 +31,6 @@ Example of the version data dict::
 
 import os
 import json
-
 import vyos.defaults
 
 from vyos.util import read_file
@@ -42,7 +41,7 @@ from vyos.util import DEVNULL
 
 
 version_file = os.path.join(vyos.defaults.directories['data'], 'version.json')
-  
+
 
 def get_version_data(fname=version_file):
     """
@@ -76,13 +75,12 @@ def get_full_version_data(fname=version_file):
     # Get system architecture (well, kernel architecture rather)
     version_data['system_arch'], _ = popen('uname -m', stderr=DEVNULL)
 
-    # Get hypervisor name, if any
-    try:
-        hypervisor, _ = popen('hvinfo', stderr=DEVNULL)
+    hypervisor,code = popen('hvinfo', stderr=DEVNULL)
+    if code == 1:
+         # hvinfo returns 1 if it cannot detect any hypervisor
+         version_data['system_type'] = 'bare metal'
+    else:
         version_data['system_type'] = f"{hypervisor} guest"
-    except OSError:
-        # hvinfo returns 1 if it cannot detect any hypervisor
-        version_data['system_type'] = 'bare metal'
 
     # Get boot type, it can be livecd, installed image, or, possible, a system installed
     # via legacy "install system" mechanism
