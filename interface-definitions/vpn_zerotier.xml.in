@@ -121,7 +121,7 @@
                   </valueHelp>
                   <valueHelp>
                     <format>disable</format>
-                    <description>Don't blacklist this path for ZeroTier traffic (default)</description>
+                    <description>Do not blacklist this path for ZeroTier traffic (default)</description>
                   </valueHelp>
                   <constraint>
                     <regex>(enable|disable)</regex>
@@ -336,7 +336,7 @@
               </completionHelp>
               <valueHelp>
                 <format>none</format>
-                <description>Don't use multipath (default)</description>
+                <description>Do not use multipath (default)</description>
               </valueHelp>
               <valueHelp>
                 <format>random</format>
