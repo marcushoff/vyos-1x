@@ -2,7 +2,7 @@
 <interfaceDefinition>
   <node name="interfaces">
     <children>
-      <tagNode name="zt" owner="${vyos_conf_scripts_dir}/interfaces-zerotier.py">
+      <tagNode name="zerotier" owner="${vyos_conf_scripts_dir}/interfaces-zerotier.py">
         <properties>
           <help>ZeroTier Interface</help>
           <priority>485</priority>

@@ -2,7 +2,7 @@
 <interfaceDefinition>
   <node name="vpn">
     <children>
-      <node name="zt" owner="${vyos_conf_scripts_dir}/vpn_zerotier.py">
+      <node name="zerotier" owner="${vyos_conf_scripts_dir}/vpn_zerotier.py">
         <properties>
           <help>ZeroTier Virtual Private Network (VPN)</help>
         </properties>
