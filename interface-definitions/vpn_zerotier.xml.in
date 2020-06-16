@@ -29,64 +29,22 @@
                   <constraintErrorMessage>Description too long (limit 256 characters)</constraintErrorMessage>
                 </properties>
               </leafNode>
-              <leafNode name="managed">
+              <leafNode name="unmanaged">
                 <properties>
-                  <help>Controller managed IP and route assignment</help>
-                  <completionHelp>
-                    <list>enable disable</list>
-                  </completionHelp>
-                  <valueHelp>
-                    <format>enable</format>
-                    <description>Enable controller management (default)</description>
-                  </valueHelp>
-                  <valueHelp>
-                    <format>disable</format>
-                    <description>Disable controller management</description>
-                  </valueHelp>
-                  <constraint>
-                    <regex>(enable|disable)</regex>
-                  </constraint>
-                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                  <help>Disable controller managed IP and route assignment</help>
+                  <valueless/>
                 </properties>
               </leafNode>
               <leafNode name="global">
                 <properties>
                   <help>Controller managed IP and routes can overlap public IP space</help>
-                  <completionHelp>
-                    <list>enable disable</list>
-                  </completionHelp>
-                  <valueHelp>
-                    <format>enable</format>
-                    <description>Enable overlap of public IP space</description>
-                  </valueHelp>
-                  <valueHelp>
-                    <format>disable</format>
-                    <description>Disable overlap of public IP space (default)</description>
-                  </valueHelp>
-                  <constraint>
-                    <regex>(enable|disable)</regex>
-                  </constraint>
-                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                  <valueless/>
                 </properties>
               </leafNode>
               <leafNode name="default">
                 <properties>
                   <help>Network can override system default route (full tunnel)</help>
-                  <completionHelp>
-                    <list>enable disable</list>
-                  </completionHelp>
-                  <valueHelp>
-                    <format>enable</format>
-                    <description>Enable override default route</description>
-                  </valueHelp>
-                  <valueHelp>
-                    <format>disable</format>
-                    <description>Disable override default route (default)</description>
-                  </valueHelp>
-                  <constraint>
-                    <regex>(enable|disable)</regex>
-                  </constraint>
-                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                  <valueless/>
                 </properties>
               </leafNode>
             </children>
@@ -112,21 +70,7 @@
               <leafNode name="blacklist">
                 <properties>
                   <help>Blacklist path</help>
-                  <completionHelp>
-                    <list>enable disable</list>
-                  </completionHelp>
-                  <valueHelp>
-                    <format>enable</format>
-                    <description>Blacklist this path for ZeroTier traffic</description>
-                  </valueHelp>
-                  <valueHelp>
-                    <format>disable</format>
-                    <description>Do not blacklist this path for ZeroTier traffic (default)</description>
-                  </valueHelp>
-                  <constraint>
-                    <regex>(enable|disable)</regex>
-                  </constraint>
-                  <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+                  <valueless/>
                 </properties>
               </leafNode>
               <leafNode name="trusted-path-id">
@@ -180,7 +124,19 @@
                       </valueHelp>
                     </properties>
                     <children>
-                      #include <include/port-number.xml.i>
+                      <leafNode name="port">
+                        <properties>
+                          <help>Port number used to establish connection</help>
+                          <valueHelp>
+                            <format>1-65535</format>
+                            <description>Numeric IP port</description>
+                          </valueHelp>
+                          <constraint>
+                            <validator name="numeric" argument="--range 1-65535"/>
+                          </constraint>
+                          <multi/>
+                        </properties>
+                      </leafNode>
                     </children>
                   </tagNode>
                 </children>
@@ -213,85 +169,64 @@
               </node>
             </children>
           </tagNode>
-          <leafNode name="primary-port">
+          <node name="port">
             <properties>
-              <help>Override default port</help>
-              <constraint>
-                <validator name="numeric" argument="--range 1-65535"/>
-              </constraint>
-              <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
-              <valueHelp>
-                <format>1-65535</format>
-                <description>Numeric IP port</description>
-              </valueHelp>
+              <help>Port settings</help>
             </properties>
-          </leafNode>
-          <leafNode name="secondary-port">
-            <properties>
-              <help>Override default secondary port</help>
-              <constraint>
-                <validator name="numeric" argument="--range 1-65535"/>
-              </constraint>
-              <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
-              <valueHelp>
-                <format>1-65535</format>
-                <description>Numeric IP port</description>
-              </valueHelp>
-            </properties>
-          </leafNode>
-          <leafNode name="tertiary-port">
-            <properties>
-              <help>Override default tertiary port</help>
-              <constraint>
-                <validator name="numeric" argument="--range 1-65535"/>
-              </constraint>
-              <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
-              <valueHelp>
-                <format>1-65535</format>
-                <description>Numeric IP port</description>
-              </valueHelp>
-            </properties>
-          </leafNode>
-          <leafNode name="port-mapping">
-            <properties>
-              <help>Try to map firewall ports</help>
-              <completionHelp>
-                <list>enable disable</list>
-              </completionHelp>
-              <valueHelp>
-                <format>enable</format>
-                <description>Try to use uPnP or NAT-PMP to map ports (default)</description>
-              </valueHelp>
-              <valueHelp>
-                <format>disable</format>
-                <description>Do not try to use uPnP or NAT-PMP to map ports</description>
-              </valueHelp>
-              <constraint>
-                <regex>(enable|disable)</regex>
-              </constraint>
-              <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
-            </properties>
-          </leafNode>
-          <leafNode name="use-secondary-port">
-            <properties>
-              <help>Allow secondary port use</help>
-              <completionHelp>
-                <list>enable disable</list>
-              </completionHelp>
-              <valueHelp>
-                <format>enable</format>
-                <description>Enable secondary port use (default)</description>
-              </valueHelp>
-              <valueHelp>
-                <format>disable</format>
-                <description>Disable secondary port use</description>
-              </valueHelp>
-              <constraint>
-                <regex>(enable|disable)</regex>
-              </constraint>
-              <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
-            </properties>
-          </leafNode>
+            <children>
+              <leafNode name="primary">
+                <properties>
+                  <help>Override default port</help>
+                  <constraint>
+                    <validator name="numeric" argument="--range 1-65535"/>
+                  </constraint>
+                  <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
+                  <valueHelp>
+                    <format>1-65535</format>
+                    <description>Numeric IP port</description>
+                  </valueHelp>
+                </properties>
+              </leafNode>
+              <leafNode name="secondary">
+                <properties>
+                  <help>Override default secondary port</help>
+                  <constraint>
+                    <validator name="numeric" argument="--range 1-65535"/>
+                  </constraint>
+                  <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
+                  <valueHelp>
+                    <format>1-65535</format>
+                    <description>Numeric IP port</description>
+                  </valueHelp>
+                </properties>
+              </leafNode>
+              <leafNode name="tertiary">
+                <properties>
+                  <help>Override default tertiary port</help>
+                  <constraint>
+                    <validator name="numeric" argument="--range 1-65535"/>
+                  </constraint>
+                  <constraintErrorMessage>Must be a number between 1-65535</constraintErrorMessage>
+                  <valueHelp>
+                    <format>1-65535</format>
+                    <description>Numeric IP port</description>
+                  </valueHelp>
+                </properties>
+              </leafNode>
+              <leafNode name="only-primary">
+                <properties>
+                  <help>Disable secondary port use</help>
+                  <valueless/>
+                </properties>
+              </leafNode>
+              <leafNode name="no-mapping">
+                <properties>
+                  <help>Do not try to use uPnP or NAT-PMP to map firewall ports</help>
+                  <valueless/>
+                </properties>
+              </leafNode>
+            </children>
+          </node>
           <node name="blacklist">
             <properties>
               <help>Blacklist interfaces for ZeroTier traffic</help>
@@ -308,24 +243,10 @@
               </leafNode>
             </children>
           </node>
-          <leafNode name="tcp-fallback-relay">
+          <leafNode name="no-fallback-relay">
             <properties>
-              <help>Establish TCP relay connections</help>
-              <completionHelp>
-                <list>enable disable</list>
-              </completionHelp>
-              <valueHelp>
-                <format>enable</format>
-                <description>Enable establishment of TCP relay connections (default)</description>
-              </valueHelp>
-              <valueHelp>
-                <format>disable</format>
-                <description>Disable establishment of TCP relay connections</description>
-              </valueHelp>
-              <constraint>
-                <regex>(enable|disable)</regex>
-              </constraint>
-              <constraintErrorMessage>Must be 'disable' or 'enable'</constraintErrorMessage>
+              <help>Disable establishment of TCP relay connections</help>
+              <valueless/>
             </properties>
           </leafNode>
           <leafNode name="multipath-mode">
