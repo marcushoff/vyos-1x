@@ -40,7 +40,7 @@
                 <properties>
                   <help>Show controller managed routes</help>
                 </properties>
-                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --network $4 routes</command>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --routes $4</command>
               </leafNode>
             </children>
           </tagNode>
@@ -63,7 +63,7 @@
                 <properties>
                   <help>Show paths</help>
                 </properties>
-                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --peer $4 paths</command>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --paths $4</command>
               </leafNode>
             </children>
           </tagNode>
@@ -87,7 +87,7 @@
                 <properties>
                   <help>Show root definitions</help>
                 </properties>
-                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --moon $4 roots</command>
+                <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --roots $4</command>
               </leafNode>
             </children>
           </tagNode>
