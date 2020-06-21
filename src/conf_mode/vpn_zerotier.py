@@ -16,20 +16,19 @@
 
 from copy import deepcopy
 from sys import exit
-import json
+from json import dump, loads
 
 from vyos import ConfigError
 from vyos.config import Config
 from vyos.util import call, cmd
-#from vyos.template import render
 
 config_file = r'/var/lib/zerotier-one/local.conf'
 
 default_config_data = {
     'network': [],
     'local': {
-        'physical': [],
-        'virtual': [],
+        'physical': {},
+        'virtual': {},
         'settings': {
             'portMappingEnabled': True,
             'allowSecondaryPort': True,
@@ -50,6 +49,7 @@ def get_config():
         return None
     else:
         conf.set_level(base)
+    local = zerotier['local']
 
     if conf.exists('network'):
         for node in conf.list_nodes('network'):
@@ -81,11 +81,11 @@ def get_config():
             if conf.exists('blacklist'):
                 physical['blacklist'] = True
             if conf.exists('trusted-path-id'):
-                physical['trustedPathId'] = conf.return_value(['trusted-path-id'])
+                physical['trustedPathId'] = int(conf.return_value(['trusted-path-id']))
             if conf.exists('mtu'):
-                physical['mtu'] = conf.return_value(['mtu'])
+                physical['mtu'] = int(conf.return_value(['mtu']))
 
-            zerotier['local']['physical'].append({node: physical})
+            local['physical'][node] = physical
         conf.set_level(base)
 
     if conf.exists('virtual'):
@@ -97,39 +97,37 @@ def get_config():
             }
 
             if conf.exists('try address'):
-                for t in conf.list_nodes('try address'):
-                    if conf.exists('try address {0} port'.format(t)):
-                        for p in conf.list_nodes('try address {0} port'.format(t)):
-                            virtual['try'].append(address + '/' + p)
-                    else:
+                for address in conf.list_nodes('try address'):
+                    ports = conf.return_values(['try address {0} port'.format(address)])
+                    for port in ports:
+                        virtual['try'].append(address + '/' + port)
+                    if not len(ports):
                         virtual['try'].append(address)
             if conf.exists('blacklist path'):
-                for path in conf.list_nodes('blacklist path'):
-                    virtual['blacklist'].append(path)
+                virtual['blacklist'] = conf.return_values(['blacklist path'])
 
-            zerotier['local']['virtual'].append({node: virtual})
+            local['virtual'][node] = virtual
         conf.set_level(base)
 
     if conf.exists('port'):
-        conf.set_level(baser + ' port')
+        conf.set_level(base + ' port')
         if conf.exists('primary'):
-            zerotier['local']['settings']['primaryPort'] = conf.return_value(['primary'])
+            local['settings']['primaryPort'] = int(conf.return_value(['primary']))
         if conf.exists('secondary'):
-            zerotier['local']['settings']['secondaryPort'] = conf.return_value(['secondary'])
+            local['settings']['secondaryPort'] = int(conf.return_value(['secondary']))
         if conf.exists('tertiary'):
-            zerotier['local']['settings']['tertiaryPort'] = conf.return_value(['tertiary'])
+            local['settings']['tertiaryPort'] = int(conf.return_value(['tertiary']))
         if conf.exists('only-primary'):
-            zerotier['local']['settings']['allowSecondaryPort'] = False
+            local['settings']['allowSecondaryPort'] = False
         if conf.exists('no-mapping'):
-            zerotier['local']['settings']['portMappingEnabled'] = False
+            local['settings']['portMappingEnabled'] = False
         conf.set_level(base)
 
     if conf.exists('blacklist'):
-        for node in conf.list_nodes('interface'):
-            zerotier['local']['settings']['interfacePrefixBlacklist'].append(node)
+        local['settings']['interfacePrefixBlacklist'] = conf.return_values(['blacklist interface'])
 
     if conf.exists('no-fallback-relay'):
-        zerotier['local']['settings']['allowTcpFallbackRelay'] = False
+        local['settings']['allowTcpFallbackRelay'] = False
 
     if conf.exists('multipath-mode'):
         mapping = {
@@ -137,7 +135,7 @@ def get_config():
             'random': 1,
             'proportional': 2
         }
-        zerotier['local']['settings']['multipathMode'] = mapping[conf.return_value(['multipath-mode'])]
+        local['settings']['multipathMode'] = mapping[conf.return_value(['multipath-mode'])]
 
     return zerotier
 
@@ -152,14 +150,16 @@ def verify(zerotier):
         return None
 
     # Physical blacklist cannot coexist with other settings
-    for physical in zerotier['local']['physical']:
-        if physical['blacklist'] and (physical['trustedPathId'] or physical['mtu']):
-            raise ConfigError('Blacklist is incompatible with other settings')
+    p = zerotier['local']['physical']
+    for key in p:
+        if p[key]['blacklist'] and (p[key]['trustedPathId'] or p[key]['mtu']):
+            raise ConfigError('ZeroTier blacklist is incompatible with other settings')
 
     # A virtual try address requires a least one port
-    for virtual in zerotier['local']['virtual']:
-        if not all('/' in t for t in virtual):
-            raise ConfigError('At least 1 port is required!')
+    virtual = zerotier['local']['virtual']
+    for key in virtual:
+        if not all('/' in t for t in virtual[key]['try']):
+            raise ConfigError('ZeroTier virtual try requires at least 1 port')
 
     return True
 
@@ -173,43 +173,41 @@ def generate(zerotier):
         return None
 
     with open(config_file, 'w') as f:
-        json.dump(zerotier['local'], f, indent=4)
+        dump(zerotier['local'], f, indent=4)
 
     # TODO: Generate moon config files
     return None
 
 def apply(zerotier):
     if zerotier is None:
-        call('systemctl stop zerotier-one.service')
+        cmd('systemctl stop zerotier-one.service')
         return None
 
     if len(zerotier['network']) == 0:
-        networks = json.loads(cmd('sudo zerotier-cli /network'))
+        networks = loads(cmd('sudo zerotier-cli /network'))
         for network in networks:
-            call('sudo zerotier-cli leave {0}'.format(network))
+            cmd('sudo zerotier-cli leave {0}'.format(network['id']))
 
-        call('systemctl stop zerotier-one.service')
+        cmd('systemctl stop zerotier-one.service')
         return None
 
-    call('systemctl start zerotier-one.service')
-    # TODO: Check if we need to resart service if local.conf has changed
+    cmd('systemctl start zerotier-one.service')
 
     # Go through each network in running zt, see if we should be joined
-    networks = json.loads(cmd('sudo zerotier-cli /network'))
+    networks = loads(cmd('sudo zerotier-cli /network'))
     for network in networks:
-        # TODO: Check if any method works
-        if not any(n for n in zerotier['network'] if n['id'] == network):
-            call('sudo zerotier-cli leave {0}'.format(network))
+        if not any(n for n in zerotier['network'] if n['id'] == network['id']):
+            cmd('sudo zerotier-cli leave {0}'.format(network['id']))
 
     # Go though all networks in config see if we are joined
-    networks = json.loads(cmd('sudo zerotier-cli /network'))
+    networks = loads(cmd('sudo zerotier-cli /network'))
     for network in zerotier['network']:
-        if not network['id'] in networks:
-            call('sudo zerotier-cli join {0}'.format(network['id']))
+        if not any(n for n in networks if n['id'] == network['id']):
+            cmd('sudo zerotier-cli join {0}'.format(network['id']))
         set_call = 'sudo zerotier-cli set {0} '.format(network['id'])
-        call(set_call + 'allowManaged {0}'.format(str(network['allowManaged']).lower()))
-        call(set_call + 'allowGlobal {0}'.format(str(network['allowGlobal']).lower()))
-        call(set_call + 'allowDefault {0}'.format(str(network['allowDefault']).lower()))
+        cmd(set_call + 'allowManaged={0}'.format(int(network['allowManaged'])))
+        cmd(set_call + 'allowGlobal={0}'.format(int(network['allowGlobal'])))
+        cmd(set_call + 'allowDefault={0}'.format(int(network['allowDefault'])))
 
 
 if __name__ == '__main__':

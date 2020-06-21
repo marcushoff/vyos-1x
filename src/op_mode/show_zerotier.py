@@ -27,7 +27,7 @@ from vyos.config import Config
 
 def get_json(path):
     r = cmd('sudo zerotier-cli ' + path)
-    if r[0] is not '{':
+    if r[0] is not '{' and not '[':
         # Bad path, return value is not json
         return None
     return(loads(r))
@@ -96,8 +96,8 @@ if __name__ == '__main__':
             networks = []
             for n in j:
                 ips = '\n'.join(n['assignedAddresses'])
-                networks.append([n['nwid'], n['name'], n['mac'], n['status'], n['type'], n['portDeviceName'], ips])
-            print(tabulate(n, headers))
+                networks.append([n['id'], n['name'], n['mac'], n['status'], n['type'], n['portDeviceName'], ips])
+            print(tabulate(networks, headers))
         else:
             j = get_json('/network/{0}'.format(args.network) )
             if not j:
@@ -122,15 +122,16 @@ if __name__ == '__main__':
             for ms in j['multicastSubscriptions']:
                 m.append([ms['adi'], ms['mac']])
 
+            i = [[ip] for ip in j['assignedAddresses']]
             print(tabulate(n, tablefmt='plain') + '\n')
-            print(tabulate(j['assignedAddresses'], ['Assigned IPs']) + '\n')
+            print(tabulate(i, ['Assigned IPs']) + '\n')
             print('Multicast Subscriptions:\n')
             print(tabulate(m, ['ADI', 'MAC']) + '\n')
         exit(0)
     elif args.routes:
-        j = get_json('/network/{0}'.format(args.network) )
+        j = get_json('/network/{0}'.format(args.routes))
         if not j:
-            print('No network {0}'.format(args.network))
+            print('No network {0}'.format(args.routes))
             exit(0)
 
         r = []
@@ -178,7 +179,9 @@ if __name__ == '__main__':
         headers = ['Address', 'Last send', 'Last receive', 'Active', 'Expired', 'Preferred', 'Trusted path ID']
         p = []
         for pa in j['paths']:
-            p.append([pa['address'], pa['lastSend'], pa['lastReceive'], pa['active'], pa['expired'], pa['preferred'], pa['trustedPathId']])
+            send = get_localtime(pa['lastSend'])
+            receive = get_localtime(pa['lastReceive'])
+            p.append([pa['address'], send, receive, pa['active'], pa['expired'], pa['preferred'], pa['trustedPathId']])
 
         print(tabulate(p, headers))
         exit(0)
@@ -189,7 +192,7 @@ if __name__ == '__main__':
             headers = ['ID', 'Timestamp', 'Waiting', 'Seed']
             moons = []
             for m in j:
-                moons.append([m['id'], m['timestamp'], m['waiting'], m['seed']])
+                moons.append([m['id'], get_localtime(m['timestamp']), m['waiting'], m['seed']])
 
             print(tabulate(m, headers))
         else:
@@ -200,7 +203,7 @@ if __name__ == '__main__':
 
             m = []
             m.append(['ID:', j['id']])
-            m.append(['Timestamp:', j['timestamp']])
+            m.append(['Timestamp:', get_localtime(j['timestamp'])])
             m.append(['Signature:', j['signature']])
             m.append(['Updates must be signed by:', j['updatesMustBeSignedBy']])
             m.append(['Waiting:', j['waiting']])

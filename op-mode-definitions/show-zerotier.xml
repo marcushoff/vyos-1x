@@ -48,7 +48,7 @@
             <properties>
               <help>Show peers</help>
             </properties>
-            <command>sudo /usr/local/bin/zerotier-cli peers</command>
+            <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --peer</command>
           </node>
           <tagNode name="peer">
             <properties>
