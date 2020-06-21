@@ -55,7 +55,6 @@ def filtered_interfaces(ifnames, iftypes, vif, vrrp):
     return an instance of the interface class
     """
     allnames = Section.interfaces()
-    allnames.sort()
 
     vrrp_interfaces = VRRP.active_interfaces() if vrrp else []
 
@@ -97,10 +96,14 @@ def split_text(text, used=0):
 
     line = ''
     for word in text.split():
-        if len(line) + len(word) >= desc_len:
-            yield f'{line} {word}'[1:]
-            line = ''
-        line = f'{line} {word}'
+        if len(line) + len(word) < desc_len:
+            line = f'{line} {word}'
+            continue
+        if line:
+            yield line[1:]
+        else:
+            line = f'{line} {word}'
+
     yield line[1:]
 
 

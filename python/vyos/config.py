@@ -68,6 +68,7 @@ import re
 import json
 import subprocess
 
+import vyos.util
 import vyos.configtree
 
 
@@ -100,22 +101,32 @@ class Config(object):
         # once the config system is initialized during boot;
         # before initialization, set to empty string
         if os.path.isfile('/tmp/vyos-config-status'):
-            running_config_text = self._run([self._cli_shell_api, '--show-active-only', '--show-show-defaults', '--show-ignore-edit', 'showConfig'])
+            try:
+                running_config_text = self._run([self._cli_shell_api, '--show-active-only', '--show-show-defaults', '--show-ignore-edit', 'showConfig'])
+            except VyOSError:
+                running_config_text = ''
         else:
             running_config_text = ''
 
         # Session config ("active") only exists in conf mode.
         # In op mode, we'll just use the same running config for both active and session configs.
         if self.in_session():
-            session_config_text = self._run([self._cli_shell_api, '--show-working-only', '--show-show-defaults', '--show-ignore-edit', 'showConfig'])
+            try:
+                session_config_text = self._run([self._cli_shell_api, '--show-working-only', '--show-show-defaults', '--show-ignore-edit', 'showConfig'])
+            except VyOSError:
+                session_config_text = ''
         else:
             session_config_text = running_config_text
 
-        self._session_config = vyos.configtree.ConfigTree(session_config_text)
         if running_config_text:
             self._running_config = vyos.configtree.ConfigTree(running_config_text)
         else:
             self._running_config = None
+
+        if session_config_text:
+            self._session_config = vyos.configtree.ConfigTree(session_config_text)
+        else:
+            self._session_config = None
 
     def _make_command(self, op, path):
         args = path.split()
@@ -193,6 +204,8 @@ class Config(object):
             This function cannot be used outside a configuration sessions.
             In operational mode scripts, use ``exists_effective``.
         """
+        if not self._session_config:
+            return False
         if self._session_config.exists(self._make_path(path)):
             return True
         else:
@@ -275,7 +288,7 @@ class Config(object):
             self.__session_env = save_env
             return(default)
 
-    def get_config_dict(self, path=[], effective=False):
+    def get_config_dict(self, path=[], effective=False, key_mangling=None):
         """
         Args: path (str list): Configuration tree path, can be empty
         Returns: a dict representation of the config
@@ -286,6 +299,15 @@ class Config(object):
             config_dict = json.loads(config_tree.to_json())
         else:
             config_dict = {}
+
+        if key_mangling:
+            if not (isinstance(key_mangling, tuple) and \
+                    (len(key_mangling) == 2) and \
+                    isinstance(key_mangling[0], str) and \
+                    isinstance(key_mangling[1], str)):
+                raise ValueError("key_mangling must be a tuple of two strings")
+            else:
+                config_dict = vyos.util.mangle_dict_keys(config_dict, key_mangling[0], key_mangling[1])
 
         return config_dict
 
@@ -362,9 +384,12 @@ class Config(object):
             This function cannot be used outside a configuration session.
             In operational mode scripts, use ``return_effective_value``.
         """
-        try:
-            value = self._session_config.return_value(self._make_path(path))
-        except vyos.configtree.ConfigTreeError:
+        if self._session_config:
+            try:
+                value = self._session_config.return_value(self._make_path(path))
+            except vyos.configtree.ConfigTreeError:
+                value = None
+        else:
             value = None
 
         if not value:
@@ -387,9 +412,12 @@ class Config(object):
             This function cannot be used outside a configuration session.
             In operational mode scripts, use ``return_effective_values``.
         """
-        try:
-            values = self._session_config.return_values(self._make_path(path))
-        except vyos.configtree.ConfigTreeError:
+        if self._session_config:
+            try:
+                values = self._session_config.return_values(self._make_path(path))
+            except vyos.configtree.ConfigTreeError:
+                values = []
+        else:
             values = []
 
         if not values:
@@ -408,9 +436,12 @@ class Config(object):
             string list: child node names
 
         """
-        try:
-            nodes = self._session_config.list_nodes(self._make_path(path))
-        except vyos.configtree.ConfigTreeError:
+        if self._session_config:
+            try:
+                nodes = self._session_config.list_nodes(self._make_path(path))
+            except vyos.configtree.ConfigTreeError:
+                nodes = []
+        else:
             nodes = []
 
         if not nodes:

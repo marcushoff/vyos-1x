@@ -27,7 +27,7 @@ from vyos.template import render
 from vyos import airbag
 airbag.enable()
 
-config_file = r'/etc/radvd.conf'
+config_file = r'/run/radvd/radvd.conf'
 
 default_config_data = {
     'interfaces': []
@@ -66,8 +66,8 @@ def get_config():
         if conf.exists(['hop-limit']):
             intf['hop_limit'] = conf.return_value(['hop-limit'])
 
-        if conf.exists(['default-lifetim']):
-            intf['default_lifetime'] = conf.return_value(['default-lifetim'])
+        if conf.exists(['default-lifetime']):
+            intf['default_lifetime'] = conf.return_value(['default-lifetime'])
 
         if conf.exists(['default-preference']):
             intf['default_preference'] = conf.return_value(['default-preference'])
@@ -107,8 +107,8 @@ def get_config():
                 'prefix' : prefix,
                 'autonomous_flag' : 'on',
                 'on_link' : 'on',
-                'preferred_lifetime': '14400',
-                'valid_lifetime' : '2592000'
+                'preferred_lifetime': 14400,
+                'valid_lifetime' : 2592000
 
             }
 
@@ -122,10 +122,10 @@ def get_config():
                 tmp['on_link'] = 'off'
 
             if conf.exists(['preferred-lifetime']):
-                tmp['preferred_lifetime'] = conf.return_value(['preferred-lifetime'])
+                tmp['preferred_lifetime'] = int(conf.return_value(['preferred-lifetime']))
 
             if conf.exists(['valid-lifetime']):
-                tmp['valid_lifetime'] = conf.return_value(['valid-lifetime'])
+                tmp['valid_lifetime'] = int(conf.return_value(['valid-lifetime']))
 
             intf['prefixes'].append(tmp)
 
@@ -134,6 +134,11 @@ def get_config():
     return rtradv
 
 def verify(rtradv):
+    for interface in rtradv['interfaces']:
+        for prefix in interface['prefixes']:
+            if not (prefix['valid_lifetime'] > prefix['preferred_lifetime']):
+                raise ConfigError('Prefix valid-lifetime must be greater then preferred-lifetime')
+
     return None
 
 def generate(rtradv):

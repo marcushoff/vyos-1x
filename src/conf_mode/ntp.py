@@ -18,6 +18,7 @@ import os
 
 from copy import deepcopy
 from ipaddress import ip_network
+from netifaces import interfaces
 from sys import exit
 
 from vyos.config import Config
@@ -29,23 +30,27 @@ from vyos import airbag
 airbag.enable()
 
 config_file = r'/etc/ntp.conf'
+systemd_override = r'/etc/systemd/system/ntp.service.d/override.conf'
 
 default_config_data = {
     'servers': [],
     'allowed_networks': [],
-    'listen_address': []
+    'listen_address': [],
+    'vrf': ''
 }
 
 def get_config():
     ntp = deepcopy(default_config_data)
     conf = Config()
-    if not conf.exists('system ntp'):
+    base = ['system', 'ntp']
+    if not conf.exists(base):
         return None
     else:
-        conf.set_level('system ntp')
+        conf.set_level(base)
 
-    if conf.exists('allow-clients address'):
-        networks = conf.return_values('allow-clients address')
+    node = ['allow-clients', 'address']
+    if conf.exists(node):
+        networks = conf.return_values(node)
         for n in networks:
             addr = ip_network(n)
             net = {
@@ -56,11 +61,13 @@ def get_config():
 
             ntp['allowed_networks'].append(net)
 
-    if conf.exists('listen-address'):
-        ntp['listen_address'] = conf.return_values('listen-address')
+    node = ['listen-address']
+    if conf.exists(node):
+        ntp['listen_address'] = conf.return_values(node)
 
-    if conf.exists('server'):
-        for node in conf.list_nodes('server'):
+    node = ['server']
+    if conf.exists(node):
+        for node in conf.list_nodes(node):
             options = []
             server = {
                 "name": node,
@@ -76,41 +83,50 @@ def get_config():
             server['options'] = options
             ntp['servers'].append(server)
 
+    node = ['vrf']
+    if conf.exists(node):
+        ntp['vrf'] = conf.return_value(node)
+
     return ntp
 
 def verify(ntp):
     # bail out early - looks like removal from running config
-    if ntp is None:
+    if not ntp:
         return None
 
     # Configuring allowed clients without a server makes no sense
     if len(ntp['allowed_networks']) and not len(ntp['servers']):
         raise ConfigError('NTP server not configured')
 
-    for n in ntp['allowed_networks']:
-        try:
-            addr = ip_network( n['network'] )
-            break
-        except ValueError:
-            raise ConfigError("{0} does not appear to be a valid IPv4 or IPv6 network, check host bits!".format(n['network']))
+    if ntp['vrf'] and ntp['vrf'] not in interfaces():
+        raise ConfigError('VRF "{vrf}" does not exist'.format(**ntp))
 
     return None
 
 def generate(ntp):
     # bail out early - looks like removal from running config
-    if ntp is None:
+    if not ntp:
         return None
 
     render(config_file, 'ntp/ntp.conf.tmpl', ntp)
+    render(systemd_override, 'ntp/override.conf.tmpl', ntp, trim_blocks=True)
+
     return None
 
 def apply(ntp):
-    if ntp is not None:
-        call('systemctl restart ntp.service')
-    else:
+    if not ntp:
         # NTP support is removed in the commit
         call('systemctl stop ntp.service')
-        os.unlink(config_file)
+        if os.path.exists(config_file):
+            os.unlink(config_file)
+        if os.path.isfile(systemd_override):
+            os.unlink(systemd_override)
+
+    # Reload systemd manager configuration
+    call('systemctl daemon-reload')
+
+    if ntp:
+        call('systemctl restart ntp.service')
 
     return None
 
