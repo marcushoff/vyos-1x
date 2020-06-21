@@ -76,7 +76,7 @@ if __name__ == '__main__':
         n.append(['Status:', 'ONLINE' if j['online'] else 'OFFLINE'])
         n.append(['Clock:', get_localtime(j['clock'])])
         mapping = ('None', 'Random', 'Proportional')
-        n.append(['Multipath mode:', mapping[s['multipathMode']]])
+        n.append(['Multipath mode:', mapping[j['multipathMode']]])
         n.append(['Primary port:', s['primaryPort']])
 
         w = []
