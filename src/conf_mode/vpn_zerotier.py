@@ -60,18 +60,18 @@ def get_config():
                 'allowDefault': False
             }
 
-            if conf.exists('network {0} unmanaged'.format(node)):
+            if conf.exists(f'network {node} unmanaged'):
                 network['allowManaged'] = False
-            if conf.exists('network {0} global'.format(node)):
+            if conf.exists(f'network {node} global'):
                 network['allowGlobal'] = True
-            if conf.exists('network {0} default'.format(node)):
+            if conf.exists(f'network {node} default'):
                 network['allowDefault'] = True
 
             zerotier['network'].append(network)
 
     if conf.exists('physical'):
         for node in conf.list_nodes('physical'):
-            conf.set_level(base + ' physical {0}'.format(node))
+            conf.set_level(base + f' physical {node}')
             physical = {
                 'blacklist': False,
                 'trustedPathId': 0,
@@ -90,7 +90,7 @@ def get_config():
 
     if conf.exists('virtual'):
         for node in conf.list_nodes('virtual'):
-            conf.set_level(base + ' virtual {0}'.format(node))
+            conf.set_level(base + f' virtual {node}')
             virtual = {
                 'try': [],
                 'blacklist': []
@@ -98,7 +98,7 @@ def get_config():
 
             if conf.exists('try address'):
                 for address in conf.list_nodes('try address'):
-                    ports = conf.return_values(['try address {0} port'.format(address)])
+                    ports = conf.return_values([f'try address {address} port'])
                     for port in ports:
                         virtual['try'].append(address + '/' + port)
                     if not len(ports):
@@ -186,7 +186,7 @@ def apply(zerotier):
     if len(zerotier['network']) == 0:
         networks = loads(cmd('sudo zerotier-cli /network'))
         for network in networks:
-            cmd('sudo zerotier-cli leave {0}'.format(network['id']))
+            cmd(f'sudo zerotier-cli leave {network["id"]}')
 
         cmd('systemctl stop zerotier-one.service')
         return None
@@ -197,17 +197,17 @@ def apply(zerotier):
     networks = loads(cmd('sudo zerotier-cli /network'))
     for network in networks:
         if not any(n for n in zerotier['network'] if n['id'] == network['id']):
-            cmd('sudo zerotier-cli leave {0}'.format(network['id']))
+            cmd(f'sudo zerotier-cli leave {network["id"]}')
 
     # Go though all networks in config see if we are joined
     networks = loads(cmd('sudo zerotier-cli /network'))
     for network in zerotier['network']:
         if not any(n for n in networks if n['id'] == network['id']):
-            cmd('sudo zerotier-cli join {0}'.format(network['id']))
-        set_call = 'sudo zerotier-cli set {0} '.format(network['id'])
-        cmd(set_call + 'allowManaged={0}'.format(int(network['allowManaged'])))
-        cmd(set_call + 'allowGlobal={0}'.format(int(network['allowGlobal'])))
-        cmd(set_call + 'allowDefault={0}'.format(int(network['allowDefault'])))
+            cmd(f'sudo zerotier-cli join {network["id"]}')
+        set_call = f'sudo zerotier-cli set {network["id"]} '
+        cmd(set_call + f'allowManaged={int(network["allowManaged"])}')
+        cmd(set_call + f'allowGlobal={int(network["allowGlobal"])}')
+        cmd(set_call + f'allowDefault={int(network["allowDefault"])}')
 
 
 if __name__ == '__main__':

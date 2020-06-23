@@ -99,9 +99,9 @@ if __name__ == '__main__':
                 networks.append([n['id'], n['name'], n['mac'], n['status'], n['type'], n['portDeviceName'], ips])
             print(tabulate(networks, headers))
         else:
-            j = get_json('/network/{0}'.format(args.network) )
+            j = get_json(f'/network/{args.network}')
             if not j:
-                print('No network {0}'.format(args.network))
+                print(f'No network {args.network}')
                 exit(0)
 
             n = []
@@ -132,9 +132,9 @@ if __name__ == '__main__':
             print(tabulate(m, ['ADI', 'MAC']) + '\n')
         exit(0)
     elif args.routes:
-        j = get_json('/network/{0}'.format(args.routes))
+        j = get_json(f'/network/{args.routes}')
         if not j:
-            print('No network {0}'.format(args.routes))
+            print(f'No network {args.routes}')
             exit(0)
 
         r = []
@@ -159,9 +159,9 @@ if __name__ == '__main__':
 
             print(tabulate(peers, headers))
         else:
-            j = get_json('/peer/{0}'.format(args.peer))
+            j = get_json(f'/peer/{args.peer}')
             if not j:
-                print('No peer {0}'.format(args.peer))
+                print(f'No peer {args.peer}')
                 exit(0)
 
             p = []
@@ -174,9 +174,9 @@ if __name__ == '__main__':
             print(tabulate(p, tablefmt='plain'))
         exit(0)
     elif args.paths:
-        j = get_json('/peer/{0}'.format(args.paths))
+        j = get_json(f'/peer/{args.paths}')
         if not j:
-            print('No peer {0}'.format(args.paths))
+            print(f'No peer {args.paths}')
             exit(0)
 
         headers = ['Address', 'Last send', 'Last receive', 'Active', 'Expired', 'Preferred', 'Trusted path ID']
@@ -199,9 +199,9 @@ if __name__ == '__main__':
 
             print(tabulate(m, headers))
         else:
-            j = get_json('/moon/{0}'.format(args.moon))
+            j = get_json(f'/moon/{args.moon}')
             if not j:
-                print('No moon {0}'.format(args.moon))
+                print(f'No moon {args.moon}')
                 exit(0)
 
             m = []
@@ -216,9 +216,9 @@ if __name__ == '__main__':
             print(tabulate(m, tablefmt='plain'))
         exit(0)
     elif args.roots:
-        j = get_json('/moon/{0}'.format(args.roots))
+        j = get_json(f'/moon/{args.roots}')
         if not j:
-            print('No moon {0}'.format(args.roots))
+            print(f'No moon {args.roots}')
             exit(0)
 
         headers = ['Identity', 'Stable endpoints']
