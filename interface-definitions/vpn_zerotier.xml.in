@@ -5,6 +5,7 @@
       <node name="zerotier" owner="${vyos_conf_scripts_dir}/vpn_zerotier.py">
         <properties>
           <help>ZeroTier Virtual Private Network (VPN)</help>
+          <priority>235</priority>
         </properties>
         <children>
           <tagNode name="network">

@@ -5,27 +5,29 @@
       <tagNode name="zerotier" owner="${vyos_conf_scripts_dir}/interfaces-zerotier.py">
         <properties>
           <help>ZeroTier Interface</help>
-          <priority>485</priority>
+          <priority>480</priority>
           <constraint>
-            <regex>^zt[0-9a-z]+$</regex>
+            <regex>^zt[0-9]+$</regex>
           </constraint>
-          <constraintErrorMessage>ZeroTier interface must be named ztXXX+</constraintErrorMessage>
+          <constraintErrorMessage>ZeroTier interface must be named ztN</constraintErrorMessage>
           <valueHelp>
-            <format>ztXXX+</format>
+            <format>ztN</format>
             <description>ZeroTier interface name</description>
           </valueHelp>
         </properties>
         <children>
+          <leafNode nmae="network">
+            <properties>
+              <help>ZeroTier Network</help>
+              <completionHelp>
+                <path>vpn zerotier network</path>
+              </completionHelp>
+            </properties>
+          </leafNode>
           #include <include/address-ipv4-ipv6.xml.i>
           #include <include/interface-description.xml.i>
           #include <include/interface-disable.xml.i>
-          <node name="ipv6">
-            <children>
-              #include <include/ipv6-address.xml.i>
-              #include <include/ipv6-disable-forwarding.xml.i>
-              #include <include/ipv6-dup-addr-detect-transmits.xml.i>
-            </children>
-          </node>
+          #include <include/interface-vrf.xml.i>
           #include <include/interface-mtu-68-9000.xml.i>
         </children>
       </tagNode>
