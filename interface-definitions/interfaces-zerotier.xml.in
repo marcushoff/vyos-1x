@@ -16,12 +16,20 @@
           </valueHelp>
         </properties>
         <children>
-          <leafNode nmae="network">
+          <leafNode name="network">
             <properties>
               <help>ZeroTier Network</help>
               <completionHelp>
                 <path>vpn zerotier network</path>
               </completionHelp>
+              <constraint>
+                <regex>^[a-f0-9]{16}$</regex>
+              </constraint>
+              <constraintErrorMessage>Must be a 16 digit hex number</constraintErrorMessage>
+              <valueHelp>
+                <format>hhhhhhhhhhhhhhhh</format>
+                <description>ZeroTier network ID</description>
+              </valueHelp>
             </properties>
           </leafNode>
           #include <include/address-ipv4-ipv6.xml.i>

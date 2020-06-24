@@ -14,11 +14,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+
+from sys import exit
 from copy import deepcopy
 
+from vyos.ifconfig import ZerotiertIf
 from vyos.config import Config
 from vyos.validate import is_member
 from vyos.util import cmd
+from vyos import ConfigError
 
 def get_network(network):
     n = cmd(f'sudo zerotier-cli /network/{network}')
