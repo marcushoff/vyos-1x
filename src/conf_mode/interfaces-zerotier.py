@@ -18,9 +18,12 @@ import os
 
 from sys import exit
 from copy import deepcopy
+from json import loads
+from netifaces import interfaces
 
-from vyos.ifconfig import ZerotiertIf
+from vyos.ifconfig import ZeroTierIf
 from vyos.config import Config
+from vyos.configdict import list_diff
 from vyos.validate import is_member
 from vyos.util import cmd
 from vyos import ConfigError
@@ -31,32 +34,8 @@ def get_network(network):
         return None
     return n
 
-def is_running(network):
-    n = get_network(network)
-    if n:
-        return n['id'] == network
-    return False
-
-def is_managed(network):
-    n = get_network(network)
-    if n:
-        return n['allowManaged']
-    return False
-
-def is_only_interface(network):
-    conf = Config()
-    old_level = conf.get_level()
-    conf.set_level('interfaces')
-    count = len(i for i in conf.list_nodes('zerotier') if i['network'] == network)
-    if count != 1:
-        conf.set_level(old_level)
-        return False
-
-    conf.set_level(old_level)
-    return True
-
 def real_interface(network):
-    n = get_network(network)
+    n = loads(get_network(network))
     if n:
         return n['portDeviceName']
     return None
@@ -72,7 +51,11 @@ default_config_data = {
     'is_bridge_member': False,
     'mtu': 1500,
     'vrf': '',
-    'network': ''
+    'network': '',
+    'network_remove': '',
+    'managed': True,
+    'global': False,
+    'default': False
 }
 
 def get_config():
@@ -88,9 +71,12 @@ def get_config():
     # check if we are a member of any bridge
     zerotier['is_bridge_member'] = is_member(conf, zerotier['intf'], 'bridge')
 
+    eff_network = conf.return_effective_value('network id')
+
     # Check if interface has been removed
     if not conf.exists('interfaces zerotier ' + zerotier['intf']):
         zerotier['deleted'] = True
+        zerotier['network_remove'] = eff_network
         return zerotier
 
     # set new configuration level
@@ -122,9 +108,23 @@ def get_config():
     if conf.exists('vrf'):
         zerotier['vrf'] = conf.return_value('vrf')
 
+    acc_network = ''
+
     # retrieve Network ID
     if conf.exists('network'):
-        zerotier['network'] = conf.return_value('network')
+        acc_network = conf.return_value('network id')
+        if conf.exists('network id'):
+            zerotier['network'] = acc_network
+        if conf.exists(f'network unmanaged'):
+            zerotier['managed'] = False
+        if conf.exists(f'network global'):
+            zerotier['global'] = True
+        if conf.exists(f'network default'):
+            zerotier['default'] = True
+
+    # remove old network if different
+    if acc_network != eff_network:
+        zerotier['network_remove'] = eff_network
 
     return zerotier
 
@@ -139,17 +139,7 @@ def verify(zerotier):
     if not zerotier['network']:
         raise ConfigError((
             f'Interface "{zerotier["intf"]}" must belong to a network!'))
-
-    if not is_running(zerotier['network']):
-        raise ConfigError((
-            f'Network "{zerotier["network"]}" on interface "{zerotier["intf"]}" '
-            f'doesn\'t exist!'))
-
-    if not is_only_interface(zerotier['network']):
-        raise ConfigError((
-            f'Only one interface can belong to network "{zerotier["network"]}"!'))
-
-    if is_managed(zerotier['network']) and len(zerotier['address']):
+    if zerotier['managed'] and len(zerotier['address']):
         raise ConfigError((
             f'Cannot assign address to managed interface "{zerotier["intf"]}"'))
 
@@ -174,42 +164,58 @@ def generate(zerotier):
     return None
 
 def apply(zerotier):
+    if zerotier['network_remove']:
+        cmd(f'sudo zerotier-cli leave {zerotier["network_remove"]}')
+
+    if zerotier['deleted']:
+        if len(loads(cmd('sudo zerotier-cli /network'))):
+            # No more networks running
+            cmd('systemctl stop zerotier-one.service')
+        return None
+
+# TODO: Error checking on return values from these commands
+    cmd('systemctl start zerotier-one.service')        
+    cmd(f'sudo zerotier-cli join {zerotier["network"]}')
+    set_call = f'sudo zerotier-cli set {zerotier["network"]} '
+    cmd(set_call + f'allowManaged={int(zerotier["managed"])}')
+    cmd(set_call + f'allowGlobal={int(zerotier["global"])}')
+    cmd(set_call + f'allowDefault={int(zerotier["default"])}')
+
+
     intf = real_interface(zerotier['network'])
     if not intf:
         raise ConfigError((
             f'Unable to find underlying interface for "{zerotier["intf"]}"! '
             f'ZeroTier might not be running or the network hasn\'t been created'
         ))
-    z = ZerotierIf(intf)
+    z = ZeroTierIf(intf)
 
-    # Remove dummy interface
-    if zerotier['deleted']:
-        z.remove()
+# TODO:check if network is in brdige if is bride member
+
+    # update interface description used e.g. within SNMP
+    z.set_alias(zerotier['description'])
+
+    # Configure interface address(es)
+    # - not longer required addresses get removed first
+    # - newly addresses will be added second
+    for addr in zerotier['address_remove']:
+        z.del_addr(addr)
+    for addr in zerotier['address']:
+        z.add_addr(addr)
+
+    # assign/remove VRF (ONLY when not a member of a bridge,
+    # otherwise 'nomaster' removes it from it)
+    if not zerotier['is_bridge_member']:
+        z.set_vrf(zerotier['vrf'])
+
+    # Maximum Transmission Unit (MTU)
+    z.set_mtu(zerotier['mtu'])
+
+    # disable interface on demand
+    if zerotier['disable']:
+        z.set_admin_state('down')
     else:
-        # update interface description used e.g. within SNMP
-        z.set_alias(zerotier['description'])
-
-        # Configure interface address(es)
-        # - not longer required addresses get removed first
-        # - newly addresses will be added second
-        for addr in zerotier['address_remove']:
-            z.del_addr(addr)
-        for addr in zerotier['address']:
-            z.add_addr(addr)
-
-        # assign/remove VRF (ONLY when not a member of a bridge,
-        # otherwise 'nomaster' removes it from it)
-        if not zerotier['is_bridge_member']:
-            z.set_vrf(zerotier['vrf'])
-
-        # Maximum Transmission Unit (MTU)
-        z.set_mtu(zerotier['mtu'])
-
-        # disable interface on demand
-        if zerotier['disable']:
-            z.set_admin_state('down')
-        else:
-            z.set_admin_state('up')
+        z.set_admin_state('up')
 
     return None
 

@@ -18,7 +18,7 @@ from vyos.ifconfig.interface import Interface
 
 
 @Interface.register
-class ZerotierIf(Interface):
+class ZeroTierIf(Interface):
     """
     A unique zerotier interface is created for every ZeroTier network joined.
     It disapears once the network is left. The interface will have a randomly

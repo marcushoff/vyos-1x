@@ -70,13 +70,13 @@ if __name__ == '__main__':
         j = get_json('/status')
 
         n = []
-        s = j['config']['settings']
         n.append(['Address:', j['address']])
         n.append(['Version:', j['version']])
         n.append(['Status:', 'ONLINE' if j['online'] else 'OFFLINE'])
         n.append(['Clock:', get_localtime(j['clock'])])
+        s = j['config']['settings']
         mapping = ('None', 'Random', 'Proportional')
-        n.append(['Multipath mode:', mapping[j['multipathMode']]])
+        n.append(['Multipath mode:', mapping[s['multipathMode']]])
         n.append(['Primary port:', s['primaryPort']])
 
         w = []
@@ -88,8 +88,8 @@ if __name__ == '__main__':
         print(tabulate(n, node_headers) + '\n')
         print(tabulate(w, world_headers))
         exit(0)
+        # TODO: Add zt interfaces to show interfaces list
     elif args.network:
-        # TODO: Get description from config
         if args.network is '-1':
             j = get_json('/network')
             headers = ['Network ID', 'Name', 'MAC', 'Status', 'Type', 'Device', 'Assigned IPs']

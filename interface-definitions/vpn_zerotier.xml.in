@@ -5,51 +5,9 @@
       <node name="zerotier" owner="${vyos_conf_scripts_dir}/vpn_zerotier.py">
         <properties>
           <help>ZeroTier Virtual Private Network (VPN)</help>
-          <priority>235</priority>
+          <priority>905</priority>
         </properties>
         <children>
-          <tagNode name="network">
-            <properties>
-              <help>ZeroTier network</help>
-              <constraint>
-                <regex>^[a-f0-9]{16}$</regex>
-              </constraint>
-              <constraintErrorMessage>Must be a 16 digit hex number</constraintErrorMessage>
-              <valueHelp>
-                <format>hhhhhhhhhhhhhhhh</format>
-                <description>ZeroTier network ID</description>
-              </valueHelp>
-            </properties>
-            <children>
-              <leafNode name="description">
-                <properties>
-                  <help>Network specific description</help>
-                  <constraint>
-                    <regex>.{1,256}$</regex>
-                  </constraint>
-                  <constraintErrorMessage>Description too long (limit 256 characters)</constraintErrorMessage>
-                </properties>
-              </leafNode>
-              <leafNode name="unmanaged">
-                <properties>
-                  <help>Disable controller managed IP and route assignment</help>
-                  <valueless/>
-                </properties>
-              </leafNode>
-              <leafNode name="global">
-                <properties>
-                  <help>Controller managed IP and routes can overlap public IP space</help>
-                  <valueless/>
-                </properties>
-              </leafNode>
-              <leafNode name="default">
-                <properties>
-                  <help>Network can override system default route (full tunnel)</help>
-                  <valueless/>
-                </properties>
-              </leafNode>
-            </children>
-          </tagNode>
           <tagNode name="physical">
             <properties>
               <help>Physical network path</help>
