@@ -31,7 +31,7 @@
             <properties>
               <help>Show specific network</help>
               <completionHelp>
-                <path>vpn zerotier network</path>
+                <script>${vyos_completion_dir}/list_zt_networks.py</script>
               </completionHelp>
             </properties>
             <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --network $4</command>
