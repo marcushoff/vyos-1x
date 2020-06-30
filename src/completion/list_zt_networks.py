@@ -18,14 +18,7 @@
 
 # TODO: Change all license to echo reply
 
-from json import loads
+from vyos.zerotier import get_networks
 
-from vyos.util import cmd
 
-def get_networks():
-    n = cmd(f'sudo zerotier-cli /network')
-    if n[0] is not '{' and not '[':
-        return None
-    return n
-
-print(" ".join([net['id'] for net in loads(get_networks())]))
+print(" ".join([net['id'] for net in get_networks()]))

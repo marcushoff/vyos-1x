@@ -18,7 +18,6 @@ import os
 
 from sys import exit
 from copy import deepcopy
-from json import loads
 from netifaces import interfaces
 
 from vyos.ifconfig import ZeroTierIf
@@ -26,19 +25,8 @@ from vyos.config import Config
 from vyos.configdict import list_diff
 from vyos.validate import is_member
 from vyos.util import cmd
+from vyos.zerotier import real_interface, get_networks
 from vyos import ConfigError
-
-def get_network(network):
-    n = cmd(f'sudo zerotier-cli /network/{network}')
-    if n[0] is not '{' and not '[':
-        return None
-    return n
-
-def real_interface(network):
-    n = loads(get_network(network))
-    if n:
-        return n['portDeviceName']
-    return None
 
 
 default_config_data = {
@@ -171,7 +159,7 @@ def apply(zerotier):
         cmd(f'sudo zerotier-cli leave {zerotier["network_remove"]}')
 
     if zerotier['deleted']:
-        if len(loads(cmd('sudo zerotier-cli /network'))):
+        if len(get_networks()):
             # No more networks running
             cmd('systemctl stop zerotier-one.service')
         return None

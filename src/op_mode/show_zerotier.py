@@ -18,19 +18,11 @@
 from argparse import ArgumentParser
 from tabulate import tabulate
 from sys import exit
-from json import loads
 import time
 
 from vyos.util import cmd, call
 from vyos.config import Config
-
-
-def get_json(path):
-    r = cmd('sudo zerotier-cli ' + path)
-    if r[0] is not '{' and not '[':
-        # Bad path, return value is not json
-        return None
-    return(loads(r))
+from vyos.zerotier import get_json
 
 def get_localtime(time_in_ms):
     s, ms = divmod(time_in_ms, 1000)
