@@ -71,12 +71,12 @@ def get_config():
     # check if we are a member of any bridge
     zerotier['is_bridge_member'] = is_member(conf, zerotier['intf'], 'bridge')
 
-    eff_network = conf.return_effective_value('network id')
-
     # Check if interface has been removed
     if not conf.exists('interfaces zerotier ' + zerotier['intf']):
         zerotier['deleted'] = True
-        zerotier['network_remove'] = eff_network
+        conf.set_level('interfaces zerotier ' + zerotier['intf'])
+        if conf.exists_effective('network'):
+            zerotier['network_remove'] = conf.return_effective_value('network id')
         return zerotier
 
     # set new configuration level
@@ -109,6 +109,9 @@ def get_config():
         zerotier['vrf'] = conf.return_value('vrf')
 
     acc_network = ''
+    eff_network = ''
+    if conf.exists_effective('network'):
+        eff_network = conf.return_effective_value('network id')
 
     # retrieve Network ID
     if conf.exists('network'):
@@ -150,8 +153,8 @@ def verify(zerotier):
         if zerotier['is_bridge_member']:
             raise ConfigError((
                 f'Interface "{zerotier["intf"]}" cannot be member of VRF '
-                f'"{zerotier["vrf"]}" and bridge "{zerotier["is_bridge_member"]}"'
-                f' at the same time!'))
+                f'"{zerotier["vrf"]}" and bridge '
+                f'"{zerotier["is_bridge_member"]}" at the same time!'))
 
     if zerotier['is_bridge_member'] and zerotier['address']:
         raise ConfigError((
@@ -174,7 +177,7 @@ def apply(zerotier):
         return None
 
 # TODO: Error checking on return values from these commands
-    cmd('systemctl start zerotier-one.service')        
+    cmd('systemctl start zerotier-one.service')
     cmd(f'sudo zerotier-cli join {zerotier["network"]}')
     set_call = f'sudo zerotier-cli set {zerotier["network"]} '
     cmd(set_call + f'allowManaged={int(zerotier["managed"])}')
