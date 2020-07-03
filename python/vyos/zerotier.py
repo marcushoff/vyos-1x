@@ -16,6 +16,7 @@
 from json import loads
 
 from vyos.util import cmd
+from vyos.config import Config
 
 def get_json(path):
     r = cmd('sudo zerotier-cli ' + path)
@@ -37,13 +38,31 @@ def real_interface(network):
     return None
 
 def real_interfaces():
-    return [real_interface(n) for n in get_networks()]
+    return [real_interface(n['id']) for n in get_networks()]
 
 # returns the configured interface from a real one
 def swap_to_configured(intf):
-    
+
+    networks = [n for n in get_networks() if real_interface(n) == intf]
+    if not len(networks):
+        return None
+
+    conf = Config()
+    if not conf.exists_effective('interfaces zerotier'):
+        return None
+
+    for z in conf.return_effective_values('interfaces zerotier'):
+        if conf.exists_effective(f'interfaces zerotier {z} network id'):
+            n = conf.return_effective_value(f'interfaces zerotier {intf} network id')
+            if n == networks[0]:
+                return z
+
     return None
 
 # returns the real interface from a configured one
 def swap_to_real(intf):
+    conf = Config()
+    if conf.exists_effective(f'interfaces zerotier {intf} network id'):
+        n = conf.return_effective_value(f'interfaces zerotier {intf} network id')
+        return real_interface(n)
     return None

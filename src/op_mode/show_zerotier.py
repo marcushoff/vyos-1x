@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     conf = Config()
 
-    if not conf.exists_effective('vpn zerotier'):
+    if not conf.exists_effective('vpn zerotier') and not conf.exists_effective('interfaces zerotier'):
         print('ZeroTier is not configured')
         exit(0)
 
