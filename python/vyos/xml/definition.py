@@ -11,7 +11,6 @@
 # You should have received a copy of the GNU Lesser General Public License along with this library;
 # if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
 
-
 from vyos.xml import kw
 
 # As we index by key, the name is first and then the data:
@@ -228,8 +227,9 @@ class XML(dict):
             inner = self.tree[option]
             prefix = '+> ' if inner.get(kw.node, '') != kw.leafNode else '   '
             if kw.help in inner:
-                h = inner[kw.help]
-                yield (prefix + option, h.get(kw.summary), '')
+                yield (prefix + option, inner[kw.help].get(kw.summary), '')
+            else:
+                yield (prefix + option, '(no help available)', '')
 
     def debug(self):
         print('------')
@@ -245,36 +245,48 @@ class XML(dict):
     # @lru_cache(maxsize=100)
     # XXX: need to use cachetool instead - for later
 
-    def defaults(self, lpath):
+    def defaults(self, lpath, flat):
         d = self[kw.default]
         for k in lpath:
             d = d[k]
-        r = {}
 
-        def _flatten(inside, index, d, r):
+        if not flat:
+            r = {}
+            for k in d:
+                under = k.replace('-','_')
+                if isinstance(d[k],dict):
+                    r[under] = self.defaults(lpath + [k], flat)
+                    continue
+                r[under] = d[k]	
+            return r
+
+        def _flatten(inside, index, d):
+            r = {}
             local = inside[index:]
             prefix = '_'.join(_.replace('-','_') for _ in local) + '_' if local else ''
             for k in d:
                 under = prefix + k.replace('-','_')
                 level = inside + [k]
                 if isinstance(d[k],dict):
-                    _flatten(level, index, d[k], r)
+                    r.update(_flatten(level, index, d[k]))
                     continue
-                if self.is_multi(level):
+                if self.is_multi(level, with_tag=False):
                     r[under] = [_.strip() for _ in d[k].split(',')]
                     continue
                 r[under] = d[k]
+            return r
 
-        _flatten(lpath, len(lpath), d, r)
-        return r
+        return _flatten(lpath, len(lpath), d)
 
     # from functools import lru_cache
     # @lru_cache(maxsize=100)
     # XXX: need to use cachetool instead - for later
 
-    def _tree(self, lpath):
+    def _tree(self, lpath, with_tag=True):
         """
         returns the part of the tree searched or None if it does not exists
+        if with_tag is set, this is a configuration path (with tagNode names)
+        and tag name will be removed from the path when traversing the tree
         """
         tree = self[kw.tree]
         spath = lpath.copy()
@@ -283,19 +295,21 @@ class XML(dict):
             if p not in tree:
                 return None
             tree = tree[p]
+            if with_tag and spath and tree[kw.node] == kw.tagNode:
+                spath.pop(0)
         return tree
 
-    def _get(self, lpath, tag):
-        return self._tree(lpath + [tag])
+    def _get(self, lpath, tag, with_tag=True):
+        return self._tree(lpath + [tag], with_tag)
 
-    def is_multi(self, lpath):
-        return self._get(lpath, kw.multi) is True
+    def is_multi(self, lpath, with_tag=True):
+        return self._get(lpath, kw.multi, with_tag) is True
 
-    def is_tag(self, lpath):
-        return self._get(lpath, kw.node) == kw.tagNode
+    def is_tag(self, lpath, with_tag=True):
+        return self._get(lpath, kw.node, with_tag) == kw.tagNode
 
-    def is_leaf(self, lpath):
-        return self._get(lpath, kw.node) == kw.leafNode
+    def is_leaf(self, lpath, with_tag=True):
+        return self._get(lpath, kw.node, with_tag) == kw.leafNode
 
-    def exists(self, lpath):
-        return self._get(lpath, kw.node) is not None
+    def exists(self, lpath, with_tag=True):
+        return self._get(lpath, kw.node, with_tag) is not None

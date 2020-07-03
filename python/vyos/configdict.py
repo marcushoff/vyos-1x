@@ -22,7 +22,6 @@ from enum import Enum
 from copy import deepcopy
 
 from vyos import ConfigError
-from vyos.ifconfig import Interface
 from vyos.validate import is_member
 from vyos.util import ifname_from_config
 
@@ -97,6 +96,8 @@ def dict_merge(source, destination):
     for key, value in source.items():
         if key not in tmp.keys():
             tmp[key] = value
+        elif isinstance(source[key], dict):
+            tmp[key] = dict_merge(source[key], tmp[key])
 
     return tmp
 
@@ -214,6 +215,8 @@ def disable_state(conf, check=[3,5,7]):
 
 
 def intf_to_dict(conf, default):
+    from vyos.ifconfig import Interface
+
     """
     Common used function which will extract VLAN related information from config
     and represent the result as Python dictionary.
@@ -223,6 +226,14 @@ def intf_to_dict(conf, default):
 
     intf = deepcopy(default)
     intf['intf'] = ifname_from_config(conf)
+
+    current_vif_list = conf.list_nodes(['vif'])
+    previous_vif_list = conf.list_effective_nodes(['vif'])
+
+    # set the vif to be deleted
+    for vif in previous_vif_list:
+        if vif not in current_vif_list:
+            intf['vif_remove'].append(vif)
 
     # retrieve interface description
     if conf.exists(['description']):

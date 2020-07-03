@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2019 VyOS maintainers and contributors
+# Copyright (C) 2019-2020 VyOS maintainers and contributors
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 or later as
@@ -16,98 +16,53 @@
 
 import os
 
-from copy import deepcopy
 from sys import exit
-from netifaces import interfaces
 
-from vyos.ifconfig import DummyIf
-from vyos.configdict import list_diff
 from vyos.config import Config
+from vyos.configverify import verify_vrf
+from vyos.configverify import verify_address
+from vyos.configverify import verify_bridge_delete
+from vyos.ifconfig import DummyIf
 from vyos.validate import is_member
 from vyos import ConfigError
-
 from vyos import airbag
 airbag.enable()
 
-default_config_data = {
-    'address': [],
-    'address_remove': [],
-    'deleted': False,
-    'description': '',
-    'disable': False,
-    'intf': '',
-    'is_bridge_member': False,
-    'vrf': ''
-}
-
 def get_config():
-    dummy = deepcopy(default_config_data)
+    """ Retrive CLI config as dictionary. Dictionary can never be empty,
+        as at least the interface name will be added or a deleted flag """
     conf = Config()
 
     # determine tagNode instance
     if 'VYOS_TAGNODE_VALUE' not in os.environ:
         raise ConfigError('Interface (VYOS_TAGNODE_VALUE) not specified')
 
-    dummy['intf'] = os.environ['VYOS_TAGNODE_VALUE']
+    ifname = os.environ['VYOS_TAGNODE_VALUE']
+    base = ['interfaces', 'dummy', ifname]
+
+    dummy = conf.get_config_dict(base, key_mangling=('-', '_'), get_first_key=True)
+    # Check if interface has been removed
+    if dummy == {}:
+        dummy.update({'deleted' : ''})
+
+    # store interface instance name in dictionary
+    dummy.update({'ifname': ifname})
 
     # check if we are a member of any bridge
-    dummy['is_bridge_member'] = is_member(conf, dummy['intf'], 'bridge')
-
-    # Check if interface has been removed
-    if not conf.exists('interfaces dummy ' + dummy['intf']):
-        dummy['deleted'] = True
-        return dummy
-
-    # set new configuration level
-    conf.set_level('interfaces dummy ' + dummy['intf'])
-
-    # retrieve configured interface addresses
-    if conf.exists('address'):
-        dummy['address'] = conf.return_values('address')
-
-    # retrieve interface description
-    if conf.exists('description'):
-        dummy['description'] = conf.return_value('description')
-
-    # Disable this interface
-    if conf.exists('disable'):
-        dummy['disable'] = True
-
-    # Determine interface addresses (currently effective) - to determine which
-    # address is no longer valid and needs to be removed from the interface
-    eff_addr = conf.return_effective_values('address')
-    act_addr = conf.return_values('address')
-    dummy['address_remove'] = list_diff(eff_addr, act_addr)
-
-    # retrieve VRF instance
-    if conf.exists('vrf'):
-        dummy['vrf'] = conf.return_value('vrf')
+    bridge = is_member(conf, ifname, 'bridge')
+    if bridge:
+        tmp = {'is_bridge_member' : bridge}
+        dummy.update(tmp)
 
     return dummy
 
 def verify(dummy):
-    if dummy['deleted']:
-        if dummy['is_bridge_member']:
-            raise ConfigError((
-                f'Interface "{dummy["intf"]}" cannot be deleted as it is a '
-                f'member of bridge "{dummy["is_bridge_member"]}"!'))
-
+    if 'deleted' in dummy.keys():
+        verify_bridge_delete(dummy)
         return None
 
-    if dummy['vrf']:
-        if dummy['vrf'] not in interfaces():
-            raise ConfigError(f'VRF "{dummy["vrf"]}" does not exist')
-
-        if dummy['is_bridge_member']:
-            raise ConfigError((
-                f'Interface "{dummy["intf"]}" cannot be member of VRF '
-                f'"{dummy["vrf"]}" and bridge "{dummy["is_bridge_member"]}" '
-                f'at the same time!'))
-
-    if dummy['is_bridge_member'] and dummy['address']:
-        raise ConfigError((
-            f'Cannot assign address to interface "{dummy["intf"]}" '
-            f'as it is a member of bridge "{dummy["is_bridge_member"]}"!'))
+    verify_vrf(dummy)
+    verify_address(dummy)
 
     return None
 
@@ -115,33 +70,13 @@ def generate(dummy):
     return None
 
 def apply(dummy):
-    d = DummyIf(dummy['intf'])
+    d = DummyIf(dummy['ifname'])
 
     # Remove dummy interface
-    if dummy['deleted']:
+    if 'deleted' in dummy.keys():
         d.remove()
     else:
-        # update interface description used e.g. within SNMP
-        d.set_alias(dummy['description'])
-
-        # Configure interface address(es)
-        # - not longer required addresses get removed first
-        # - newly addresses will be added second
-        for addr in dummy['address_remove']:
-            d.del_addr(addr)
-        for addr in dummy['address']:
-            d.add_addr(addr)
-
-        # assign/remove VRF (ONLY when not a member of a bridge,
-        # otherwise 'nomaster' removes it from it)
-        if not dummy['is_bridge_member']:
-            d.set_vrf(dummy['vrf'])
-
-        # disable interface on demand
-        if dummy['disable']:
-            d.set_admin_state('down')
-        else:
-            d.set_admin_state('up')
+        d.update(dummy)
 
     return None
 
