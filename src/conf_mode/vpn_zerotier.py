@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2020 VyOS maintainers and contributors
+# Copyright (C) 2020 echo reply maintainers and contributors
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 or later as
@@ -14,15 +14,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+
 from copy import deepcopy
-from sys import exit
 from json import dump
 
 from vyos import ConfigError
 from vyos.config import Config
 from vyos.util import call, cmd
 
-config_file = r'/var/lib/zerotier-one/local.conf'
+CONFIG_FILE = r'/var/lib/zerotier-one/local.conf'
 
 default_config_data = {
     'physical': {},
@@ -44,8 +45,8 @@ def get_config():
     base = 'vpn zerotier'
     if not conf.exists(base):
         return None
-    else:
-        conf.set_level(base)
+    conf.set_level(base)
+
     if conf.exists('physical'):
         for node in conf.list_nodes('physical'):
             conf.set_level(base + f' physical {node}')
@@ -78,7 +79,7 @@ def get_config():
                     ports = conf.return_values([f'try address {address} port'])
                     for port in ports:
                         virtual['try'].append(address + '/' + port)
-                    if not len(ports):
+                    if len(ports) == 0:
                         virtual['try'].append(address)
             if conf.exists('blacklist path'):
                 virtual['blacklist'] = conf.return_values(['blacklist path'])
@@ -122,9 +123,9 @@ def verify(zerotier):
         return None
 
     # Physical blacklist cannot coexist with other settings
-    p = zerotier['physical']
-    for key in p:
-        if p[key]['blacklist'] and (p[key]['trustedPathId'] or p[key]['mtu']):
+    phy = zerotier['physical']
+    for key in phy:
+        if phy[key]['blacklist'] and (phy[key]['trustedPathId'] or phy[key]['mtu']):
             raise ConfigError('ZeroTier blacklist is incompatible with other settings')
 
     # A virtual try address requires a least one port
@@ -140,8 +141,8 @@ def generate(zerotier):
     if zerotier is None:
         return None
 
-    with open(config_file, 'w') as f:
-        dump(zerotier, f, indent=4)
+    with open(CONFIG_FILE, 'w') as file:
+        dump(zerotier, file, indent=4)
 
     # TODO: Generate moon config files
     return None
@@ -155,6 +156,6 @@ if __name__ == '__main__':
         verify(config)
         generate(config)
         apply(config)
-    except ConfigError as e:
-        print(e)
-        exit(1)
+    except ConfigError as error:
+        print(error)
+        sys.exit(1)

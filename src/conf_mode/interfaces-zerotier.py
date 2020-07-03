@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2020 VyOS maintainers and contributors
+# Copyright (C) 2020 echo reply maintainers and contributors
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 or later as
@@ -15,8 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 
-from sys import exit
 from copy import deepcopy
 from netifaces import interfaces
 
@@ -106,11 +106,11 @@ def get_config():
         acc_network = conf.return_value('network id')
         if conf.exists('network id'):
             zerotier['network'] = acc_network
-        if conf.exists(f'network unmanaged'):
+        if conf.exists('network unmanaged'):
             zerotier['managed'] = False
-        if conf.exists(f'network global'):
+        if conf.exists('network global'):
             zerotier['global'] = True
-        if conf.exists(f'network default'):
+        if conf.exists('network default'):
             zerotier['default'] = True
 
     # remove old network if different
@@ -130,7 +130,7 @@ def verify(zerotier):
     if not zerotier['network']:
         raise ConfigError((
             f'Interface "{zerotier["intf"]}" must belong to a network!'))
-    if zerotier['managed'] and len(zerotier['address']):
+    if zerotier['managed'] and len(zerotier['address']) > 0:
         raise ConfigError((
             f'Cannot assign address to managed interface "{zerotier["intf"]}"'))
 
@@ -179,34 +179,34 @@ def apply(zerotier):
             f'Unable to find underlying interface for "{zerotier["intf"]}"! '
             f'ZeroTier might not be running or the network hasn\'t been created'
         ))
-    z = ZeroTierIf(intf)
+    z_if = ZeroTierIf(intf)
 
 # TODO:check if network is in brdige if is bride member
 
     # update interface description used e.g. within SNMP
-    z.set_alias(zerotier['description'])
+    z_if.set_alias(zerotier['description'])
 
     # Configure interface address(es)
     # - not longer required addresses get removed first
     # - newly addresses will be added second
     for addr in zerotier['address_remove']:
-        z.del_addr(addr)
+        z_if.del_addr(addr)
     for addr in zerotier['address']:
-        z.add_addr(addr)
+        z_if.add_addr(addr)
 
     # assign/remove VRF (ONLY when not a member of a bridge,
     # otherwise 'nomaster' removes it from it)
     if not zerotier['is_bridge_member']:
-        z.set_vrf(zerotier['vrf'])
+        z_if.set_vrf(zerotier['vrf'])
 
     # Maximum Transmission Unit (MTU)
-    z.set_mtu(zerotier['mtu'])
+    z_if.set_mtu(zerotier['mtu'])
 
     # disable interface on demand
     if zerotier['disable']:
-        z.set_admin_state('down')
+        z_if.set_admin_state('down')
     else:
-        z.set_admin_state('up')
+        z_if.set_admin_state('up')
 
     return None
 
@@ -216,6 +216,6 @@ if __name__ == '__main__':
         verify(config)
         generate(config)
         apply(config)
-    except ConfigError as e:
-        print(e)
-        exit(1)
+    except ConfigError as error:
+        print(error)
+        sys.exit(1)

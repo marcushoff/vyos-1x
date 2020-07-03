@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Completion script used to show zerotier networks
-
-# TODO: Change all license to echo reply
+# Completion script used to show zerotier interfaces
 
 from vyos.zerotier import real_interfaces
 

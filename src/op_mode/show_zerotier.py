@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2020 VyOS maintainers and contributors
+# Copyright (C) 2020 echo reply maintainers and contributors
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 or later as
@@ -17,7 +17,7 @@
 
 from argparse import ArgumentParser
 from tabulate import tabulate
-from sys import exit
+import sys
 import time
 
 from vyos.util import cmd, call
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
     if not conf.exists_effective('vpn zerotier') and not conf.exists_effective('interfaces zerotier'):
         print('ZeroTier is not configured')
-        exit(0)
+        sys.exit(0)
 
     if call('systemctl -q is-active zerotier-one.service') != 0:
         print('WARNING: ZeroTier is configured but not started. Data may be invalid')
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         i = cmd('sudo zerotier-cli info').split()
         headers = ['Node address', 'Version', 'Status']
         print(tabulate([i[2:5]], headers))
-        exit(0)
+        sys.exit(0)
     elif args.status:
         j = get_json('/status')
 
@@ -79,10 +79,9 @@ if __name__ == '__main__':
         world_headers = ['World', '']
         print(tabulate(n, node_headers) + '\n')
         print(tabulate(w, world_headers))
-        exit(0)
-        # TODO: Add zt interfaces to show interfaces list
+        sys.exit(0)
     elif args.network:
-        if args.network is '-1':
+        if args.network == '-1':
             j = get_json('/network')
             headers = ['Network ID', 'Name', 'MAC', 'Status', 'Type', 'Device', 'Assigned IPs']
             networks = []
@@ -94,7 +93,7 @@ if __name__ == '__main__':
             j = get_json(f'/network/{args.network}')
             if not j:
                 print(f'No network {args.network}')
-                exit(0)
+                sys.exit(0)
 
             n = []
             n.append(['ID:', j['id']])
@@ -122,21 +121,21 @@ if __name__ == '__main__':
             print(tabulate(i, ['Assigned IPs']) + '\n')
             print('Multicast Subscriptions:\n')
             print(tabulate(m, ['ADI', 'MAC']) + '\n')
-        exit(0)
+        sys.exit(0)
     elif args.routes:
         j = get_json(f'/network/{args.routes}')
         if not j:
             print(f'No network {args.routes}')
-            exit(0)
+            sys.exit(0)
 
         r = []
         for ro in j['routes']:
             r.append([ro['target'], ro['via'], ro['flags'], ro['metric']])
 
         print(tabulate(r, ['Target', 'Via', 'Flags', 'Metric']))
-        exit(0)
+        sys.exit(0)
     elif args.peer:
-        if args.peer is '-1':
+        if args.peer == '-1':
             j = get_json('/peer')
 
             headers = ['Address', 'Path', 'Latency', 'Version', 'Role']
@@ -154,7 +153,7 @@ if __name__ == '__main__':
             j = get_json(f'/peer/{args.peer}')
             if not j:
                 print(f'No peer {args.peer}')
-                exit(0)
+                sys.exit(0)
 
             p = []
             p.append(['Address:', j['address']])
@@ -164,12 +163,12 @@ if __name__ == '__main__':
             p.append(['Paths:', len(j['paths'])])
 
             print(tabulate(p, tablefmt='plain'))
-        exit(0)
+        sys.exit(0)
     elif args.paths:
         j = get_json(f'/peer/{args.paths}')
         if not j:
             print(f'No peer {args.paths}')
-            exit(0)
+            sys.exit(0)
 
         headers = ['Address', 'Last send', 'Last receive', 'Active', 'Expired', 'Preferred', 'Trusted path ID']
         p = []
@@ -179,9 +178,9 @@ if __name__ == '__main__':
             p.append([pa['address'], send, receive, pa['active'], pa['expired'], pa['preferred'], pa['trustedPathId']])
 
         print(tabulate(p, headers))
-        exit(0)
+        sys.exit(0)
     elif args.moon:
-        if args.moon is '-1':
+        if args.moon == '-1':
             j = get_json('/moon')
 
             headers = ['ID', 'Timestamp', 'Waiting', 'Seed']
@@ -189,12 +188,12 @@ if __name__ == '__main__':
             for m in j:
                 moons.append([m['id'], get_localtime(m['timestamp']), m['waiting'], m['seed']])
 
-            print(tabulate(m, headers))
+            print(tabulate(moons, headers))
         else:
             j = get_json(f'/moon/{args.moon}')
             if not j:
                 print(f'No moon {args.moon}')
-                exit(0)
+                sys.exit(0)
 
             m = []
             m.append(['ID:', j['id']])
@@ -206,12 +205,12 @@ if __name__ == '__main__':
             m.append(['Roots:', len(j['roots'])])
 
             print(tabulate(m, tablefmt='plain'))
-        exit(0)
+        sys.exit(0)
     elif args.roots:
         j = get_json(f'/moon/{args.roots}')
         if not j:
             print(f'No moon {args.roots}')
-            exit(0)
+            sys.exit(0)
 
         headers = ['Identity', 'Stable endpoints']
         roots = []
@@ -219,7 +218,7 @@ if __name__ == '__main__':
             roots.append([r['identity'], '\n'.join(r['stableEndpoints'])])
 
         print(tabulate(roots, headers))
-        exit(0)
+        sys.exit(0)
     else:
         parser.print_help()
-        exit(1)
+        sys.exit(1)

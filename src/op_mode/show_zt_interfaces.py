@@ -23,7 +23,7 @@ import show_interfaces
 
 from vyos.ifconfig import SectionZT
 from vyos.ifconfig import VRRP
-from vyos.zerotier import swap_to_real, real_interfaces
+from vyos.zerotier import swap_to_real
 
 def make_real(ifname):
     if re.match(r'^zt[0-9]+$', ifname):

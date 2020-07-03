@@ -16,9 +16,6 @@
 
 # Completion script used to show zerotier networks
 
-# TODO: Change all license to echo reply
-
 from vyos.zerotier import get_networks
-
 
 print(" ".join([net['id'] for net in get_networks()]))

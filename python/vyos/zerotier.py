@@ -19,11 +19,11 @@ from vyos.util import cmd
 from vyos.config import Config
 
 def get_json(path):
-    r = cmd('sudo zerotier-cli ' + path)
-    if r[0] is not '{' and not '[':
+    return_json = cmd('sudo zerotier-cli ' + path)
+    if return_json[0] != ('{' or '['):
         # Bad path, return value is not json
         return None
-    return(loads(r))
+    return(loads(return_json))
 
 def get_networks():
     return get_json('/network')
@@ -44,18 +44,18 @@ def real_interfaces():
 def swap_to_configured(intf):
 
     networks = [n for n in get_networks() if real_interface(n) == intf]
-    if not len(networks):
+    if len(networks) == 0:
         return None
 
     conf = Config()
     if not conf.exists_effective('interfaces zerotier'):
         return None
 
-    for z in conf.return_effective_values('interfaces zerotier'):
-        if conf.exists_effective(f'interfaces zerotier {z} network id'):
-            n = conf.return_effective_value(f'interfaces zerotier {intf} network id')
-            if n == networks[0]:
-                return z
+    for z_if in conf.return_effective_values('interfaces zerotier'):
+        if conf.exists_effective(f'interfaces zerotier {z_if} network id'):
+            net = conf.return_effective_value(f'interfaces zerotier {intf} network id')
+            if net == networks[0]:
+                return z_if
 
     return None
 
@@ -63,6 +63,6 @@ def swap_to_configured(intf):
 def swap_to_real(intf):
     conf = Config()
     if conf.exists_effective(f'interfaces zerotier {intf} network id'):
-        n = conf.return_effective_value(f'interfaces zerotier {intf} network id')
-        return real_interface(n)
+        net = conf.return_effective_value(f'interfaces zerotier {intf} network id')
+        return real_interface(net)
     return None
