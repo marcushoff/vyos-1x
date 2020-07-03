@@ -25,7 +25,7 @@ from vyos.config import Config
 from vyos.configdict import list_diff
 from vyos.validate import is_member
 from vyos.util import cmd
-from vyos.zerotier import real_interface, get_networks
+from vyos.zerotier import real_interface, get_networks, get_network
 from vyos import ConfigError
 
 
@@ -181,7 +181,12 @@ def apply(zerotier):
         ))
     z_if = ZeroTierIf(intf)
 
-# TODO:check if network is in brdige if is bride member
+    # TODO: add the real interface to the bridge and not the config interface
+    controller_bridge = get_network(zerotier['network'])['bridge']
+    if zerotier['is_bridge_member'] and not controller_bridge:
+        print(
+            f'WARNING: Interface "{zerotier["intf"]}" is a bridge member, but '
+            f'the controller has not set this network to bridge mode!')
 
     # update interface description used e.g. within SNMP
     z_if.set_alias(zerotier['description'])
