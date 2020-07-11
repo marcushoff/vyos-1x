@@ -15,29 +15,43 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+import os
 
 from copy import deepcopy
 from json import dump
 
 from vyos import ConfigError
 from vyos.config import Config
-from vyos.util import call, cmd
+from vyos.util import call, cmd, chown, chmod_750
 
 CONFIG_FILE = r'/var/lib/zerotier-one/local.conf'
+AUTH_DIR = r'/config/auth'
+MOON_DIR = r'/var/lib/zerotier-one/moons.d'
 
 default_config_data = {
-    'physical': {},
-    'virtual': {},
-    'settings': {
-        'portMappingEnabled': True,
-        'allowSecondaryPort': True,
-        'softwareUpdate': 'disable',
-        'softwareUpdateChannel': 'release',
-        'interfacePrefixBlacklist': [],
-        'allowTcpFallbackRelay': True,
-        'multipathMode': 0
-    }
+    'local': {
+        'physical': {},
+        'virtual': {},
+        'settings': {
+            'portMappingEnabled': True,
+            'allowSecondaryPort': True,
+            'softwareUpdate': 'disable',
+            'softwareUpdateChannel': 'release',
+            'interfacePrefixBlacklist': [],
+            'allowTcpFallbackRelay': True,
+            'multipathMode': 0
+        }
+    },
+    'moon_files': [],
+    'moon':[],
+    'moons_changed': False
 }
+
+def _migrate_moon(file):
+    if not os.path.exists(f'{AUTH_DIR}/{file}'):
+        raise ConfigError(f'Cannot find file "{AUTH_DIR}/{file}"!')
+
+    os.rename(f'{AUTH_DIR}/{file}', f'{MOON_DIR}/{file}')
 
 def get_config():
     zerotier = deepcopy(default_config_data)
@@ -46,6 +60,7 @@ def get_config():
     if not conf.exists(base):
         return None
     conf.set_level(base)
+    local = zerotier['local']
 
     if conf.exists('physical'):
         for node in conf.list_nodes('physical'):
@@ -63,7 +78,7 @@ def get_config():
             if conf.exists('mtu'):
                 physical['mtu'] = int(conf.return_value(['mtu']))
 
-            zerotier['physical'][node] = physical
+            local['physical'][node] = physical
         conf.set_level(base)
 
     if conf.exists('virtual'):
@@ -84,28 +99,28 @@ def get_config():
             if conf.exists('blacklist path'):
                 virtual['blacklist'] = conf.return_values(['blacklist path'])
 
-            zerotier['virtual'][node] = virtual
+            local['virtual'][node] = virtual
         conf.set_level(base)
 
     if conf.exists('port'):
         conf.set_level(base + ' port')
         if conf.exists('primary'):
-            zerotier['settings']['primaryPort'] = int(conf.return_value(['primary']))
+            local['settings']['primaryPort'] = int(conf.return_value(['primary']))
         if conf.exists('secondary'):
-            zerotier['settings']['secondaryPort'] = int(conf.return_value(['secondary']))
+            local['settings']['secondaryPort'] = int(conf.return_value(['secondary']))
         if conf.exists('tertiary'):
-            zerotier['settings']['tertiaryPort'] = int(conf.return_value(['tertiary']))
+            local['settings']['tertiaryPort'] = int(conf.return_value(['tertiary']))
         if conf.exists('only-primary'):
-            zerotier['settings']['allowSecondaryPort'] = False
+            local['settings']['allowSecondaryPort'] = False
         if conf.exists('no-mapping'):
-            zerotier['settings']['portMappingEnabled'] = False
+            local['settings']['portMappingEnabled'] = False
         conf.set_level(base)
 
     if conf.exists('blacklist'):
-        zerotier['settings']['interfacePrefixBlacklist'] = conf.return_values(['blacklist interface'])
+        local['settings']['interfacePrefixBlacklist'] = conf.return_values(['blacklist interface'])
 
     if conf.exists('no-fallback-relay'):
-        zerotier['settings']['allowTcpFallbackRelay'] = False
+        local['settings']['allowTcpFallbackRelay'] = False
 
     if conf.exists('multipath-mode'):
         mapping = {
@@ -113,8 +128,20 @@ def get_config():
             'random': 1,
             'proportional': 2
         }
-        zerotier['settings']['multipathMode'] = mapping[conf.return_value(['multipath-mode'])]
+        local['settings']['multipathMode'] = mapping[conf.return_value(['multipath-mode'])]
 
+    if conf.exists('moon file'):
+        for file in conf.list_nodes('moon file'):
+            zerotier['moon_files'].append(file)
+
+    if conf.exists('moon id'):
+        for wid in conf.list_nodes('moon id'):
+            if conf.exists(f'moon id {wid} root'):
+                for root in conf.list_nodes(f'moon id {wid} root'):
+                    zerotier['moon'].append({wid, root})
+            else:
+                zerotier['moon'].append({wid, None})
+# TODO: make list of moons we have left
     return zerotier
 
 def verify(zerotier):
@@ -122,17 +149,27 @@ def verify(zerotier):
     if zerotier is None:
         return None
 
+    local = zerotier['local']
     # Physical blacklist cannot coexist with other settings
-    phy = zerotier['physical']
+    phy = local['physical']
     for key in phy:
         if phy[key]['blacklist'] and (phy[key]['trustedPathId'] or phy[key]['mtu']):
-            raise ConfigError('ZeroTier blacklist is incompatible with other settings')
+            raise ConfigError(
+                f'ZeroTier blacklist for physical "{phy[key]}" is incompatible '
+                f'with other settings!')
 
     # A virtual try address requires a least one port
-    virtual = zerotier['virtual']
+    virtual = local['virtual']
     for key in virtual:
         if not all('/' in t for t in virtual[key]['try']):
-            raise ConfigError('ZeroTier virtual try requires at least 1 port')
+            raise ConfigError(
+                f'ZeroTier virtual "{key}" try, requires at least 1 port!')
+
+    for wid, root in zerotier['moon']:
+        if not root:
+            raise ConfigError(
+                f'ZeroTier moon with world ID "{wid}", requires at least 1 '
+                f'root!')
 
     return True
 
@@ -142,12 +179,41 @@ def generate(zerotier):
         return None
 
     with open(CONFIG_FILE, 'w') as file:
-        dump(zerotier, file, indent=4)
+        dump(zerotier['local'], file, indent=4)
 
-    # TODO: Generate moon config files
+    # create moon.d if it doesn't exist
+    if not os.path.exists(MOON_DIR):
+        os.makedirs(MOON_DIR)
+        chown(MOON_DIR, 'zerotier-one', 'zerotier-one')
+        chmod_750(MOON_DIR)
+
+    # grab all files in moon directory
+    files = [f for f in os.listdir(MOON_DIR) if os.path.isfile(os.path.join(MOON_DIR, f))]
+    # grab all files not in config
+    remove = [f for f in files if f not in zerotier['moon_files']]
+    for file in remove:
+        os.remove(f'{MOON_DIR}/{file}')
+        zerotier['moons_changed'] = True
+
+    # grab all files not in directory
+    add = [f for f in zerotier['moon_files'] if f not in files]
+    for file in add:
+        _migrate_moon(file)
+        zerotier['moons_changed'] = True
+
     return None
 
 def apply(zerotier):
+    if zerotier['moons_changed']:
+        # NOTE: this might happen twice, since we also do it in the interfaces file
+        cmd('systemctl restart zerotier-one.service')
+
+    cmd('systemctl start zerotier-one.service')
+
+# TODO: deorbit moons we have left
+    for wid, root in zerotier['moon']:
+        cmd(f'sudo zerotier-cli orbit {wid} {root}')
+
     return None
 
 if __name__ == '__main__':

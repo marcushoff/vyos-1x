@@ -232,6 +232,55 @@
               <constraintErrorMessage>Must be 'none', 'random' or 'proportional'</constraintErrorMessage>
             </properties>
           </leafNode>
+          <node name="moon">
+            <properties>
+              <help>Moons</help>
+            </properties>
+            <children>
+              <leafNode name="file">
+                <properties>
+                  <help>File containing world definition for moon</help>
+                  <valueHelp>
+                    <format>file</format>
+                    <description>File in /config/auth directory</description>
+                  </valueHelp>
+                  <constraint>
+                    <validator name="file-exists" argument="--directory /config/auth"/>
+                  </constraint>
+                  <multi/>
+                </properties>
+              </leafNode>
+              <tagNode name="id">
+                <properties>
+                  <help>World ID</help>
+                  <constraint>
+                    <regex>^[a-f0-9]{10}$</regex>
+                  </constraint>
+                  <constraintErrorMessage>Must be a 10 digit hex number</constraintErrorMessage>
+                  <valueHelp>
+                    <format>hhhhhhhhhh</format>
+                    <description>ZeroTier world ID</description>
+                  </valueHelp>
+                </properties>
+                <children>
+                  <leafNode name="root">
+                    <properties>
+                      <help>Root adderess</help>
+                      <constraint>
+                        <regex>^[a-f0-9]{10}$</regex>
+                      </constraint>
+                      <constraintErrorMessage>Must be a 10 digit hex number</constraintErrorMessage>
+                      <valueHelp>
+                        <format>hhhhhhhhhh</format>
+                        <description>ZeroTier address</description>
+                      </valueHelp>
+                      <multi/>
+                    </properties>
+                  </leafNode>
+                </children>
+              </tagNode>
+            </children>
+          </node>
         </children>
       </node>
     </children>
