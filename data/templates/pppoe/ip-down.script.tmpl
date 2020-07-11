@@ -10,7 +10,7 @@ fi
 DIALER_PID=$(cat /var/run/{{ ifname }}.pid)
 logger -t pppd[$DIALER_PID] "executing $0"
 
-{% if not on_demand %}
+{% if connect_on_demand is not defined %}
 # See https://phabricator.vyos.net/T2248. Determine if we are enslaved to a
 # VRF, this is needed to properly insert the default route.
 VRF_NAME=""
@@ -30,7 +30,7 @@ vtysh -c "conf t" ${VRF_NAME} -c "no ipv6 route ::/0 {{ ifname }} ${VRF_NAME}"
 {%   endif %}
 {% endif %}
 
-{% if dhcpv6_pd_interfaces %}
-# Start wide dhcpv6 client
+{% if dhcpv6_options is defined and dhcpv6_options.prefix_delegation is defined %}
+# Stop wide dhcpv6 client
 systemctl stop dhcp6c@{{ ifname }}.service
 {% endif %}

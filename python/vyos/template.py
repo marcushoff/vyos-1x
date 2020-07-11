@@ -17,10 +17,8 @@ import os
 
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
-
 from vyos.defaults import directories
 from vyos.util import chmod, chown, makedir
-
 
 # reuse the same Environment to improve performance
 _templates_env = {
@@ -32,6 +30,21 @@ _templates_mem = {
     True: {},
 }
 
+def vyos_address_from_cidr(text):
+    """ Take an IPv4/IPv6 CIDR prefix and convert the network to an "address".
+    Example:
+    192.0.2.0/24 -> 192.0.2.0, 2001:db8::/48 -> 2001:db8::
+    """
+    from ipaddress import ip_network
+    return ip_network(text).network_address
+
+def vyos_netmask_from_cidr(text):
+    """ Take an IPv4/IPv6 CIDR prefix and convert the prefix length to a "subnet mask".
+    Example:
+    192.0.2.0/24 -> 255.255.255.0, 2001:db8::/48 -> ffff:ffff:ffff::
+    """
+    from ipaddress import ip_network
+    return ip_network(text).netmask
 
 def render(destination, template, content, trim_blocks=False, formater=None, permission=None, user=None, group=None):
     """
@@ -42,8 +55,8 @@ def render(destination, template, content, trim_blocks=False, formater=None, per
 
     This classes cache the renderer, so rendering the same file multiple time
     does not cause as too much overhead. If use everywhere, it could be changed
-    and load the template from python environement variables from an import 
-    python module generated when the debian package is build 
+    and load the template from python environement variables from an import
+    python module generated when the debian package is build
     (recovering the load time and overhead caused by having the file out of the code)
     """
 
@@ -54,11 +67,15 @@ def render(destination, template, content, trim_blocks=False, formater=None, per
     # Setup a renderer for the given template
     # This is cached and re-used for performance
     if template not in _templates_mem[trim_blocks]:
-        _templates_mem[trim_blocks][template] = _templates_env[trim_blocks].get_template(template)
+        _env = _templates_env[trim_blocks]
+        _env.filters['address_from_cidr'] = vyos_address_from_cidr
+        _env.filters['netmask_from_cidr'] = vyos_netmask_from_cidr
+        _templates_mem[trim_blocks][template] = _env.get_template(template)
+
     template = _templates_mem[trim_blocks][template]
 
     # As we are opening the file with 'w', we are performing the rendering
-    # before calling open() to not accidentally erase the file if the 
+    # before calling open() to not accidentally erase the file if the
     # templating fails
     content = template.render(content)
 

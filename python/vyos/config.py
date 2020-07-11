@@ -289,17 +289,24 @@ class Config(object):
 
     def get_config_dict(self, path=[], effective=False, key_mangling=None, get_first_key=False):
         """
-        Args: path (str list): Configuration tree path, can be empty
-        Returns: a dict representation of the config
+        Args:
+            path (str list): Configuration tree path, can be empty
+            effective=False: effective or session config
+            key_mangling=None: mangle dict keys according to regex and replacement
+            get_first_key=False: if k = path[:-1], return sub-dict d[k] instead of {k: d[k]}
+
+        Returns: a dict representation of the config under path
         """
-        res = self.show_config(effective=effective)
         config_dict = {}
-        if not res:
-            return config_dict
+
+        if effective:
+            if self._running_config:
+                config_dict = json.loads((self._running_config).to_json())
         else:
-            config_tree = vyos.configtree.ConfigTree(res)
-            config_dict = json.loads(config_tree.to_json())
-            config_dict = vyos.util.get_sub_dict(config_dict, self._make_path(path), get_first_key)
+            if self._session_config:
+                config_dict = json.loads((self._session_config).to_json())
+
+        config_dict = vyos.util.get_sub_dict(config_dict, self._make_path(path), get_first_key)
 
         if key_mangling:
             if not (isinstance(key_mangling, tuple) and \
