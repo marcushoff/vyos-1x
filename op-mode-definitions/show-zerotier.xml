@@ -9,7 +9,7 @@
               <help>Show ZeroTier interface information</help>
               <completionHelp>
                 <path>interfaces zerotier</path>
-                <script>${vyos_completion_dir}/list_zt_interfaces.py</script>
+                <script>${vyos_completion_dir}/list_zerotiert.py --interfaces</script>
               </completionHelp>
             </properties>
             <command>${vyos_op_scripts_dir}/show_zt_interfaces.py --intf="$4"</command>
@@ -67,7 +67,7 @@
             <properties>
               <help>Show specific network</help>
               <completionHelp>
-                <script>${vyos_completion_dir}/list_zt_networks.py</script>
+                <script>${vyos_completion_dir}/list_zerotier.py --networks</script>
               </completionHelp>
             </properties>
             <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --network $4</command>
@@ -113,8 +113,7 @@
             <properties>
               <help>Show specific moon</help>
               <completionHelp>
-                <!--TODO: create configuration mode for moons -->
-                <path>vpn zerotier moon</path>
+                <script>${vyos_completion_dir}/list_zerotier.py --moons</script>
               </completionHelp>
             </properties>
             <command>sudo ${vyos_op_scripts_dir}/show_zerotier.py --moon $4</command>

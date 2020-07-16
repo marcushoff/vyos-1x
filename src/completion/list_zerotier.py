@@ -16,6 +16,24 @@
 
 # Completion script used to show zerotier interfaces
 
-from vyos.zerotier import real_interfaces
+from argparse import ArgumentParser
 
-print("\n" + " ".join(real_interfaces()))
+from vyos.zerotier import real_interfaces
+from vyos.zerotier import get_networks
+from vyos.zerotier import get_moons
+
+
+parser = ArgumentParser()
+
+parser.add_argument("-n", "--networks", action='store_true', help="List ZeroTier networks")
+parser.add_argument("-i", "--interfaces", action='store_true', help="List ZeroTier interfaces")
+parser.add_argument("-m", "--moons", action='store_true', help="List ZeroTier moons")
+
+args = parser.parse_args()
+
+if args.networks:
+    print(" ".join([net['id'] for net in get_networks()]))
+elif args.interfaces:
+    print("\n" + " ".join(real_interfaces()))
+elif args.moons:
+    print("\n".join([moon['id'] for moon in get_moons()]))
