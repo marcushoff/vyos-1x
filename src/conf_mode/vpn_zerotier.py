@@ -19,13 +19,13 @@ import os
 
 from copy import deepcopy
 from json import dump
+from filecmp import cmp
 
 from vyos import ConfigError
 from vyos.config import Config
-from vyos.util import call, cmd, chown, chmod_750
+from vyos.util import call, cmd, chown, chmod_755
 
 CONFIG_FILE = r'/var/lib/zerotier-one/local.conf'
-AUTH_DIR = r'/config/auth'
 MOON_DIR = r'/var/lib/zerotier-one/moons.d'
 
 default_config_data = {
@@ -44,21 +44,20 @@ default_config_data = {
     },
     'moon_files': [],
     'moon':[],
+    'moon_remove': [],
     'moons_changed': False
 }
 
 def _migrate_moon(file):
-    if not os.path.exists(f'{AUTH_DIR}/{file}'):
-        raise ConfigError(f'Cannot find file "{AUTH_DIR}/{file}"!')
+    if not os.path.exists(file):
+        raise ConfigError(f'Cannot find file "{file}"!')
+    cmd(f'sudo cp {file} {MOON_DIR}/{os.path.basename(file)}')
 
-    os.rename(f'{AUTH_DIR}/{file}', f'{MOON_DIR}/{file}')
 
 def get_config():
     zerotier = deepcopy(default_config_data)
     conf = Config()
     base = 'vpn zerotier'
-    if not conf.exists(base):
-        return None
     conf.set_level(base)
     local = zerotier['local']
 
@@ -130,25 +129,29 @@ def get_config():
         }
         local['settings']['multipathMode'] = mapping[conf.return_value(['multipath-mode'])]
 
+    conf.set_level(base)
     if conf.exists('moon file'):
-        for file in conf.list_nodes('moon file'):
+        for file in conf.return_values('moon file'):
             zerotier['moon_files'].append(file)
 
     if conf.exists('moon id'):
         for wid in conf.list_nodes('moon id'):
             if conf.exists(f'moon id {wid} root'):
-                for root in conf.list_nodes(f'moon id {wid} root'):
-                    zerotier['moon'].append({wid, root})
+                for root in conf.return_values(f'moon id {wid} root'):
+                    zerotier['moon'].append((wid, root))
             else:
-                zerotier['moon'].append({wid, None})
-# TODO: make list of moons we have left
+                zerotier['moon'].append((wid, None))
+
+    # check if moons have been removed
+    if conf.exists_effective('moon id'):
+        for wid in conf.list_effective_nodes('moon id'):
+            for root in conf.list_effective_nodes(f'moon if {wid} root'):
+                if (wid, root) not in zerotier['moon']:
+                    zerotier['moon_remove'].append((wid, root))
+
     return zerotier
 
 def verify(zerotier):
-    # bail out early - looks like removal from running config
-    if zerotier is None:
-        return None
-
     local = zerotier['local']
     # Physical blacklist cannot coexist with other settings
     phy = local['physical']
@@ -171,13 +174,18 @@ def verify(zerotier):
                 f'ZeroTier moon with world ID "{wid}", requires at least 1 '
                 f'root!')
 
+    basenames = []
+    for file in zerotier['moon_files']:
+        basename = os.path.basename(file)
+        if basename in basenames:
+            raise ConfigError(
+                f'There already exists a ZeroTier moon file with the same name '
+                f'as "{file}"!')
+        basenames.append(basename)
+
     return True
 
 def generate(zerotier):
-    # bail out early - looks like removal from running config
-    if zerotier is None:
-        return None
-
     with open(CONFIG_FILE, 'w') as file:
         dump(zerotier['local'], file, indent=4)
 
@@ -185,23 +193,29 @@ def generate(zerotier):
     if not os.path.exists(MOON_DIR):
         os.makedirs(MOON_DIR)
         chown(MOON_DIR, 'zerotier-one', 'zerotier-one')
-        chmod_750(MOON_DIR)
+        chmod_755(MOON_DIR)
 
     # grab all files in moon directory
-    files = [f for f in os.listdir(MOON_DIR) if os.path.isfile(os.path.join(MOON_DIR, f))]
+    moon_files = [f for f in os.listdir(MOON_DIR) if os.path.isfile(os.path.join(MOON_DIR, f))]
+
     # grab all files not in config
-    remove = [f for f in files if f not in zerotier['moon_files']]
+    remove = [f for f in moon_files if f not in zerotier['moon_files']]
     for file in remove:
         os.remove(f'{MOON_DIR}/{file}')
         zerotier['moons_changed'] = True
 
     # grab all files not in directory
-    add = [f for f in zerotier['moon_files'] if f not in files]
+    add = [f for f in zerotier['moon_files'] if f not in moon_files]
     for file in add:
         _migrate_moon(file)
         zerotier['moons_changed'] = True
 
-    return None
+    # check if user changed files in the auth directory
+    for file in zerotier['moon_files']:
+        if not cmp(file, f'{MOON_DIR}/{os.path.basename(file)}'):
+            _migrate_moon(file)
+            zerotier['moons_changed'] = True
+
 
 def apply(zerotier):
     if zerotier['moons_changed']:
@@ -210,11 +224,12 @@ def apply(zerotier):
 
     cmd('systemctl start zerotier-one.service')
 
-# TODO: deorbit moons we have left
+    for wid in zerotier['moon_remove']:
+        cmd(f'sudo zerotier-cli deorbit {wid}')
+
     for wid, root in zerotier['moon']:
         cmd(f'sudo zerotier-cli orbit {wid} {root}')
 
-    return None
 
 if __name__ == '__main__':
     try:

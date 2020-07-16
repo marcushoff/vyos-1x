@@ -183,10 +183,10 @@ if __name__ == '__main__':
         if args.moon == '-1':
             j = get_json('/moon')
 
-            headers = ['ID', 'Timestamp', 'Waiting', 'Seed']
+            headers = ['ID', 'Timestamp', 'Waiting']
             moons = []
             for m in j:
-                moons.append([m['id'], get_localtime(m['timestamp']), m['waiting'], m['seed']])
+                moons.append([m['id'], get_localtime(m['timestamp']), m['waiting']])
 
             print(tabulate(moons, headers))
         else:
@@ -201,7 +201,6 @@ if __name__ == '__main__':
             m.append(['Signature:', j['signature']])
             m.append(['Updates must be signed by:', j['updatesMustBeSignedBy']])
             m.append(['Waiting:', j['waiting']])
-            m.append(['Seed:', j['seed']])
             m.append(['Roots:', len(j['roots'])])
 
             print(tabulate(m, tablefmt='plain'))

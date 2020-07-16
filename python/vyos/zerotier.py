@@ -20,7 +20,8 @@ from vyos.config import Config
 
 def get_json(path):
     return_json = cmd('sudo zerotier-cli ' + path)
-    if return_json[0] != ('{' or '['):
+    start_symbols = ['{', '[']
+    if return_json[0] not in start_symbols:
         # Bad path, return value is not json
         return None
     return(loads(return_json))
@@ -40,6 +41,12 @@ def real_interface(network):
 def real_interfaces():
     return [real_interface(n['id']) for n in get_networks()]
 
+def get_moons():
+    return get_json(f'/moon')
+
+def get_moon(moon):
+    return get_json(f'/moon/{moon}')
+    
 # returns the configured interface from a real one
 def swap_to_configured(intf):
 
