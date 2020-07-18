@@ -33,5 +33,6 @@ class ZeroTierIf(Interface):
         **{
             'section': 'zerotier',
             'prefixes': ['zt', ],
+            'bridgeable': True,
         },
     }

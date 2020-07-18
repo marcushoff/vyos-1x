@@ -53,7 +53,6 @@ def _migrate_moon(file):
         raise ConfigError(f'Cannot find file "{file}"!')
     cmd(f'sudo cp {file} {MOON_DIR}/{os.path.basename(file)}')
 
-
 def get_config():
     zerotier = deepcopy(default_config_data)
     conf = Config()

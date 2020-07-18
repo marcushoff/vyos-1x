@@ -51,7 +51,8 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if call('systemctl -q is-active zerotier-one.service') != 0:
-        print('WARNING: ZeroTier is configured but not started. Data may be invalid')
+        print('WARNING: ZeroTier is configured but not started! Data may be invalid')
+        sys.exit(0)
 
     if args.info:
         i = cmd('sudo zerotier-cli info').split()

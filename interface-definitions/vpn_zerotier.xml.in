@@ -244,6 +244,9 @@
                     <format>file</format>
                     <description>File in /config/auth directory</description>
                   </valueHelp>
+                  <completionHelp>
+                    <script>ls /config/auth</script>
+                  </completionHelp>
                   <constraint>
                     <validator name="file-exists" argument="--directory /config/auth"/>
                   </constraint>
