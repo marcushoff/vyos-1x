@@ -1,5 +1,42 @@
 <?xml version="1.0"?>
 <interfaceDefinition>
+  <node name="connect">
+    <children>
+      <node name="network">
+        <properties>
+          <help>Bring up a network connection</help>
+        </properties>
+        <children>
+          <tagNode name="zerotier">
+            <properties>
+              <help>Join a ZeroTier network</help>
+            </properties>
+            <command>${vyos_op_scripts_dir}/zerotier.py --join="$4"</command>
+          </tagNode>
+        </children>
+      </node>
+    </children>
+  </node>
+  <node name="disconnect">
+    <children>
+      <node name="network">
+        <properties>
+          <help>Tak down a network connection</help>
+        </properties>
+        <children>
+          <tagNode name="zerotier">
+            <properties>
+              <help>Leave a ZeroTier network</help>
+              <completionHelp>
+                <script>${vyos_completion_dir}/list_zerotier.py --networks</script>
+              </completionHelp>
+            </properties>
+            <command>${vyos_op_scripts_dir}/zerotier.py --leave="$4"</command>
+          </tagNode>
+        </children>
+      </node>
+    </children>
+  </node>
   <node name="show">
     <children>
       <node name="interfaces">
@@ -8,17 +45,16 @@
             <properties>
               <help>Show ZeroTier interface information</help>
               <completionHelp>
-                <path>interfaces zerotier</path>
-                <script>${vyos_completion_dir}/list_zerotiert.py --interfaces</script>
+                <script>${vyos_completion_dir}/list_zerotier.py --interfaces</script>
               </completionHelp>
             </properties>
-            <command>${vyos_op_scripts_dir}/show_zt_interfaces.py --intf="$4"</command>
+            <command>${vyos_op_scripts_dir}/show_interfaces.py --intf="$4"</command>
             <children>
               <leafNode name="brief">
                 <properties>
                   <help>Show summary of the specified ZeroTier interface information</help>
                 </properties>
-                <command>${vyos_op_scripts_dir}/show_zt_interfaces.py --intf="$4" --action=show-brief</command>
+                <command>${vyos_op_scripts_dir}/show_interfaces.py --intf="$4" --action=show-brief</command>
               </leafNode>
             </children>
           </tagNode>
@@ -26,13 +62,13 @@
             <properties>
               <help>Show ZeroTier interface information</help>
             </properties>
-            <command>${vyos_op_scripts_dir}/show_zt_interfaces.py --intf-type=zerotier --action=show-brief</command>
+            <command>${vyos_op_scripts_dir}/show_interfaces.py --intf-type=zerotier --action=show-brief</command>
             <children>
               <leafNode name="detail">
                 <properties>
                   <help>Show detailed ZeroTier interface information</help>
                 </properties>
-                <command>${vyos_op_scripts_dir}/show_zt_interfaces.py --intf-type=zerotier --action=show</command>
+                <command>${vyos_op_scripts_dir}/show_interfaces.py --intf-type=zerotier --action=show</command>
               </leafNode>
             </children>
           </node>

@@ -52,8 +52,11 @@ class Section:
         name: name of the interface
         vlan: if vlan is True, do not stop at the vlan number
         """
-        name = name.rstrip('0123456789')
-        name = name.rstrip('.')
+        if re.match(r'^zt[a-z0-9]{8}', name):
+            name = name[0:2]
+        else:
+            name = name.rstrip('0123456789')
+            name = name.rstrip('.')
         if vlan:
             name = name.rstrip('0123456789.')
         return name

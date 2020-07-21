@@ -18,22 +18,21 @@
 
 from argparse import ArgumentParser
 
-from vyos.zerotier import real_interfaces
-from vyos.zerotier import get_networks
-from vyos.zerotier import get_moons
+from vyos.zerotier import interfaces, networks, moons
 
 
 parser = ArgumentParser()
+group = parser.add_mutually_exclusive_group()
 
-parser.add_argument("-n", "--networks", action='store_true', help="List ZeroTier networks")
-parser.add_argument("-i", "--interfaces", action='store_true', help="List ZeroTier interfaces")
-parser.add_argument("-m", "--moons", action='store_true', help="List ZeroTier moons")
+group.add_argument("-n", "--networks", action='store_true', help="List ZeroTier networks")
+group.add_argument("-i", "--interfaces", action='store_true', help="List ZeroTier interfaces")
+group.add_argument("-m", "--moons", action='store_true', help="List ZeroTier moons")
 
 args = parser.parse_args()
 
 if args.networks:
-    print(" ".join([net['id'] for net in get_networks()]))
+    print(" ".join([net['id'] for net in networks()]))
 elif args.interfaces:
-    print("\n" + " ".join(real_interfaces()))
+    print("\n" + " ".join(interfaces()))
 elif args.moons:
-    print("\n".join([moon['id'] for moon in get_moons()]))
+    print("\n".join([moon['id'] for moon in moons()]))

@@ -15,14 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from argparse import ArgumentParser
-from tabulate import tabulate
 import sys
 import time
 
+from argparse import ArgumentParser
+from tabulate import tabulate
+
 from vyos.util import cmd, call
 from vyos.config import Config
-from vyos.zerotier import get_json
+from vyos.zerotier import networks, network, moon, moons, status, peers, peer
 
 def get_localtime(time_in_ms):
     s, ms = divmod(time_in_ms, 1000)
@@ -46,12 +47,11 @@ if __name__ == '__main__':
 
     conf = Config()
 
-    if not conf.exists_effective('vpn zerotier') and not conf.exists_effective('interfaces zerotier'):
-        print('ZeroTier is not configured')
-        sys.exit(0)
-
     if call('systemctl -q is-active zerotier-one.service') != 0:
-        print('WARNING: ZeroTier is configured but not started! Data may be invalid')
+        if conf.exists_effective('vpn zerotier') or conf.exists_effective('interfaces zerotier'):
+            print('WARNING: ZeroTier is configured but not running! Data may be invalid')
+            sys.exit(0)
+        print('ZeroTier service is not running')
         sys.exit(0)
 
     if args.info:
@@ -60,7 +60,7 @@ if __name__ == '__main__':
         print(tabulate([i[2:5]], headers))
         sys.exit(0)
     elif args.status:
-        j = get_json('/status')
+        j = status()
 
         n = []
         n.append(['Address:', j['address']])
@@ -83,7 +83,7 @@ if __name__ == '__main__':
         sys.exit(0)
     elif args.network:
         if args.network == '-1':
-            j = get_json('/network')
+            j = networks()
             headers = ['Network ID', 'Name', 'MAC', 'Status', 'Type', 'Device', 'Assigned IPs']
             networks = []
             for n in j:
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 networks.append([n['id'], n['name'], n['mac'], n['status'], n['type'], n['portDeviceName'], ips])
             print(tabulate(networks, headers))
         else:
-            j = get_json(f'/network/{args.network}')
+            j = network(args.network)
             if not j:
                 print(f'No network {args.network}')
                 sys.exit(0)
@@ -124,7 +124,7 @@ if __name__ == '__main__':
             print(tabulate(m, ['ADI', 'MAC']) + '\n')
         sys.exit(0)
     elif args.routes:
-        j = get_json(f'/network/{args.routes}')
+        j = network(args.routes)
         if not j:
             print(f'No network {args.routes}')
             sys.exit(0)
@@ -137,7 +137,7 @@ if __name__ == '__main__':
         sys.exit(0)
     elif args.peer:
         if args.peer == '-1':
-            j = get_json('/peer')
+            j = peers()
 
             headers = ['Address', 'Path', 'Latency', 'Version', 'Role']
             peers = []
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
             print(tabulate(peers, headers))
         else:
-            j = get_json(f'/peer/{args.peer}')
+            j = peer(args.peer)
             if not j:
                 print(f'No peer {args.peer}')
                 sys.exit(0)
@@ -166,7 +166,7 @@ if __name__ == '__main__':
             print(tabulate(p, tablefmt='plain'))
         sys.exit(0)
     elif args.paths:
-        j = get_json(f'/peer/{args.paths}')
+        j = peer(args.paths)
         if not j:
             print(f'No peer {args.paths}')
             sys.exit(0)
@@ -182,7 +182,7 @@ if __name__ == '__main__':
         sys.exit(0)
     elif args.moon:
         if args.moon == '-1':
-            j = get_json('/moon')
+            j = moons()
 
             headers = ['ID', 'Timestamp', 'Waiting']
             moons = []
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
             print(tabulate(moons, headers))
         else:
-            j = get_json(f'/moon/{args.moon}')
+            j = moon(args.moon)
             if not j:
                 print(f'No moon {args.moon}')
                 sys.exit(0)
@@ -207,7 +207,7 @@ if __name__ == '__main__':
             print(tabulate(m, tablefmt='plain'))
         sys.exit(0)
     elif args.roots:
-        j = get_json(f'/moon/{args.roots}')
+        j = moon(args.roots)
         if not j:
             print(f'No moon {args.roots}')
             sys.exit(0)

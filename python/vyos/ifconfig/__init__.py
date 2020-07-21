@@ -15,7 +15,6 @@
 
 
 from vyos.ifconfig.section import Section
-from vyos.ifconfig.section_zt import SectionZT
 from vyos.ifconfig.control import Control
 from vyos.ifconfig.interface import Interface
 from vyos.ifconfig.operational import Operational

@@ -18,7 +18,7 @@ from json import loads
 from vyos.util import cmd
 from vyos.config import Config
 
-def get_json(path):
+def json(path):
     return_json = cmd('sudo zerotier-cli ' + path)
     start_symbols = ['{', '[']
     if return_json[0] not in start_symbols:
@@ -26,50 +26,38 @@ def get_json(path):
         return None
     return(loads(return_json))
 
-def get_networks():
-    return get_json('/network')
+def networks():
+    return json('/network')
 
-def get_network(network):
-    return get_json(f'/network/{network}')
+def network(nwid):
+    return json(f'/network/{nwid}')
 
-def real_interface(network):
-    n = get_network(network)
+def interface(nwid):
+    n = network(nwid)
     if n:
         return n['portDeviceName']
     return None
 
-def real_interfaces():
-    return [real_interface(n['id']) for n in get_networks()]
+def interfaces():
+    return [interface(n['id']) for n in networks()]
 
-def get_moons():
-    return get_json(f'/moon')
+def moons():
+    return json('/moon')
 
-def get_moon(moon):
-    return get_json(f'/moon/{moon}')
-    
-# returns the configured interface from a real one
-def swap_to_configured(intf):
+def moon(moon):
+    return json(f'/moon/{moon}')
 
-    networks = [n for n in get_networks() if real_interface(n) == intf]
-    if len(networks) == 0:
-        return None
-
-    conf = Config()
-    if not conf.exists_effective('interfaces zerotier'):
-        return None
-
-    for z_if in conf.return_effective_values('interfaces zerotier'):
-        if conf.exists_effective(f'interfaces zerotier {z_if} network id'):
-            net = conf.return_effective_value(f'interfaces zerotier {intf} network id')
-            if net == networks[0]:
-                return z_if
-
+def networkid(intf):
+    nwids = [n['id'] for n in networks() if interface(n['id']) == intf]
+    if len(nwids) > 0:
+        return nwids[0]
     return None
 
-# returns the real interface from a configured one
-def swap_to_real(intf):
-    conf = Config()
-    if conf.exists_effective(f'interfaces zerotier {intf} network id'):
-        net = conf.return_effective_value(f'interfaces zerotier {intf} network id')
-        return real_interface(net)
-    return None
+def status():
+    return json('/status')
+
+def peers():
+    return json('/peer')
+
+def peer(peer):
+    return json(f'/peer/{peer}')

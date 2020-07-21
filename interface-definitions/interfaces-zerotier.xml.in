@@ -6,14 +6,9 @@
         <properties>
           <help>ZeroTier Interface</help>
           <priority>480</priority>
-          <constraint>
-            <regex>^zt[0-9]+$</regex>
-          </constraint>
-          <constraintErrorMessage>ZeroTier interface must be named ztN</constraintErrorMessage>
-          <valueHelp>
-            <format>ztN</format>
-            <description>ZeroTier interface name</description>
-          </valueHelp>
+          <completionHelp>
+            <script>${vyos_completion_dir}/list_zerotier.py --interfaces</script>
+          </completionHelp>
         </properties>
         <children>
           <node name="network">
@@ -21,19 +16,6 @@
               <help>ZeroTier network</help>
             </properties>
             <children>
-              <leafNode name="id">
-                <properties>
-                  <help>Network ID</help>
-                  <constraint>
-                    <regex>^[a-f0-9]{16}$</regex>
-                  </constraint>
-                  <constraintErrorMessage>Must be a 16 digit hex number</constraintErrorMessage>
-                  <valueHelp>
-                    <format>hhhhhhhhhhhhhhhh</format>
-                    <description>ZeroTier network ID</description>
-                  </valueHelp>
-                </properties>
-              </leafNode>
               <leafNode name="unmanaged">
                 <properties>
                   <help>Disable controller managed IP and route assignment</help>
