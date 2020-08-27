@@ -88,12 +88,14 @@ op_mode_definitions:
 	find $(CURDIR)/op-mode-definitions/ -type f -name "*.xml" | xargs -I {} $(CURDIR)/scripts/build-command-op-templates {} $(CURDIR)/schema/op-mode-definition.rng $(OP_TMPL_DIR) || exit 1
 
 	# XXX: delete top level op mode node.def's that now live in other packages
+	rm -f $(OP_TMPL_DIR)/add/node.def
 	rm -f $(OP_TMPL_DIR)/clear/node.def
 	rm -f $(OP_TMPL_DIR)/clear/interfaces/node.def
 	rm -f $(OP_TMPL_DIR)/set/node.def
 	rm -f $(OP_TMPL_DIR)/show/node.def
 	rm -f $(OP_TMPL_DIR)/show/interfaces/node.def
 	rm -f $(OP_TMPL_DIR)/show/ipv6/node.def
+	rm -f $(OP_TMPL_DIR)/show/ipv6/bgp/node.def
 	rm -f $(OP_TMPL_DIR)/show/ipv6/route/node.def
 	rm -f $(OP_TMPL_DIR)/restart/node.def
 	rm -f $(OP_TMPL_DIR)/monitor/node.def
@@ -102,6 +104,10 @@ op_mode_definitions:
 	rm -f $(OP_TMPL_DIR)/show/vpn/node.def
 	rm -f $(OP_TMPL_DIR)/delete/node.def
 	rm -f $(OP_TMPL_DIR)/reset/vpn/node.def
+
+	# XXX: ping must be able to recursivly call itself as the
+	# options are provided from the script itself
+	ln -s ../node.tag $(OP_TMPL_DIR)/ping/node.tag/node.tag/
 
 .PHONY: component_versions
 .ONESHELL:

@@ -242,7 +242,8 @@ def get_config():
                 'server' : server,
                 'key' : '',
                 'fail_time' : 0,
-                'port' : '1812'
+                'port' : '1812',
+                'acct_port' : '1813'
             }
 
             conf.set_level(base_path + ['authentication', 'radius', 'server', server])
@@ -252,6 +253,9 @@ def get_config():
 
             if conf.exists(['port']):
                 radius['port'] = conf.return_value(['port'])
+
+            if conf.exists(['acct-port']):
+                radius['acct_port'] = conf.return_value(['acct-port'])
 
             if conf.exists(['key']):
                 radius['key'] = conf.return_value(['key'])
@@ -416,6 +420,9 @@ def verify(pppoe):
 
     if len(pppoe['dnsv6']) > 3:
         raise ConfigError('Not more then three IPv6 DNS name-servers can be configured')
+
+    if not pppoe['interfaces']:
+        raise ConfigError('At least one listen interface must be defined!')
 
     # local ippool and gateway settings config checks
     if pppoe['client_ip_subnets'] or pppoe['client_ip_pool']:
