@@ -19,6 +19,8 @@ import json
 import os
 
 from copy import deepcopy
+from distutils.version import LooseVersion
+from platform import release as kernel_version
 from sys import exit
 from netifaces import interfaces
 
@@ -33,7 +35,10 @@ from vyos import ConfigError
 from vyos import airbag
 airbag.enable()
 
-k_mod = ['nft_nat', 'nft_chain_nat_ipv4']
+if LooseVersion(kernel_version()) > LooseVersion('5.1'):
+    k_mod = ['nft_nat', 'nft_chain_nat']
+else:
+    k_mod = ['nft_nat', 'nft_chain_nat_ipv4']
 
 default_config_data = {
     'deleted': False,
@@ -162,9 +167,12 @@ def parse_configuration(conf, source_dest):
 
     return ruleset
 
-def get_config():
+def get_config(config=None):
     nat = deepcopy(default_config_data)
-    conf = Config()
+    if config:
+        conf = config
+    else:
+        conf = Config()
 
     # read in current nftable (once) for further processing
     tmp = cmd('nft -j list table raw')
@@ -232,6 +240,8 @@ def verify(nat):
             addr = rule['translation_address']
             if addr != 'masquerade' and not is_addr_assigned(addr):
                 print(f'Warning: IP address {addr} does not exist on the system!')
+        elif not rule['exclude']:
+            raise ConfigError(f'{err_msg} translation address not specified')
 
         # common rule verification
         verify_rule(rule, err_msg)
@@ -245,6 +255,9 @@ def verify(nat):
 
         if not rule['interface_in']:
             raise ConfigError(f'{err_msg} inbound-interface not specified')
+
+        if not rule['translation_address'] and not rule['exclude']:
+            raise ConfigError(f'{err_msg} translation address not specified')
 
         # common rule verification
         verify_rule(rule, err_msg)
