@@ -50,14 +50,6 @@ from vyos.ifconfig.vrrp import VRRP
 from vyos.ifconfig.operational import Operational
 from vyos.ifconfig import Section
 
-def get_ethertype(ethertype_val):
-    if ethertype_val == '0x88A8':
-        return '802.1ad'
-    elif ethertype_val == '0x8100':
-        return '802.1q'
-    else:
-        raise ConfigError('invalid ethertype "{}"'.format(ethertype_val))
-
 class Interface(Control):
     # This is the class which will be used to create
     # self.operational, it allows subclasses, such as
@@ -86,9 +78,13 @@ class Interface(Control):
             'shellcmd': 'ip -json link show dev {ifname}',
             'format': lambda j: 'up' if 'UP' in jmespath.search('[*].flags | [0]', json.loads(j)) else 'down',
         },
-        'vlan_protocol': {
-            'shellcmd': 'ip -json -details link show dev {ifname}',
-            'format': lambda j: jmespath.search('[*].linkinfo.info_data.protocol | [0]', json.loads(j)),
+        'min_mtu': {
+            'shellcmd': 'ip -json -detail link list dev {ifname}',
+            'format': lambda j: jmespath.search('[*].min_mtu | [0]', json.loads(j)),
+        },
+        'max_mtu': {
+            'shellcmd': 'ip -json -detail link list dev {ifname}',
+            'format': lambda j: jmespath.search('[*].max_mtu | [0]', json.loads(j)),
         },
     }
 
@@ -185,6 +181,15 @@ class Interface(Control):
     @classmethod
     def exists(cls, ifname):
         return os.path.exists(f'/sys/class/net/{ifname}')
+
+    @classmethod
+    def get_config(cls):
+        """
+        Some but not all interfaces require a configuration when they are added
+        using iproute2. This method will provide the configuration dictionary
+        used by this class.
+        """
+        return deepcopy(cls.default)
 
     def __init__(self, ifname, **kargs):
         """
@@ -285,6 +290,28 @@ class Interface(Control):
         cmd = 'ip link del dev {ifname}'.format(**self.config)
         return self._cmd(cmd)
 
+    def get_min_mtu(self):
+        """
+        Get hardware minimum supported MTU
+
+        Example:
+        >>> from vyos.ifconfig import Interface
+        >>> Interface('eth0').get_min_mtu()
+        '60'
+        """
+        return int(self.get_interface('min_mtu'))
+
+    def get_max_mtu(self):
+        """
+        Get hardware maximum supported MTU
+
+        Example:
+        >>> from vyos.ifconfig import Interface
+        >>> Interface('eth0').get_max_mtu()
+        '9000'
+        """
+        return int(self.get_interface('max_mtu'))
+
     def get_mtu(self):
         """
         Get/set interface mtu in bytes.
@@ -294,7 +321,7 @@ class Interface(Control):
         >>> Interface('eth0').get_mtu()
         '1500'
         """
-        return self.get_interface('mtu')
+        return int(self.get_interface('mtu'))
 
     def set_mtu(self, mtu):
         """
@@ -464,10 +491,13 @@ class Interface(Control):
         Calculate the EUI64 from the interface's MAC, then assign it
         with the given prefix to the interface.
         """
-
-        eui64 = mac2eui64(self.get_mac(), prefix)
-        prefixlen = prefix.split('/')[1]
-        self.add_addr(f'{eui64}/{prefixlen}')
+        # T2863: only add a link-local IPv6 address if the interface returns
+        # a MAC address. This is not the case on e.g. WireGuard interfaces.
+        mac = self.get_mac()
+        if mac:
+            eui64 = mac2eui64(mac, prefix)
+            prefixlen = prefix.split('/')[1]
+            self.add_addr(f'{eui64}/{prefixlen}')
 
     def del_ipv6_eui64_address(self, prefix):
         """
@@ -559,17 +589,6 @@ class Interface(Control):
         """
         self.set_interface('alias', ifalias)
 
-    def get_vlan_protocol(self):
-        """
-        Retrieve VLAN protocol in use, this can be 802.1Q, 802.1ad or None
-
-        Example:
-        >>> from vyos.ifconfig import Interface
-        >>> Interface('eth0.10').get_vlan_protocol()
-        '802.1Q'
-        """
-        return self.get_interface('vlan_protocol')
-
     def get_admin_state(self):
         """
         Get interface administrative state. Function will return 'up' or 'down'
@@ -591,17 +610,6 @@ class Interface(Control):
         >>> Interface('eth0').get_admin_state()
         'down'
         """
-        # A VLAN interface can only be placed in admin up state when
-        # the lower interface is up, too
-        if self.get_vlan_protocol():
-            lower_interface = glob(f'/sys/class/net/{self.ifname}/lower*/flags')[0]
-            with open(lower_interface, 'r') as f:
-                flags = f.read()
-            # If parent is not up - bail out as we can not bring up the VLAN.
-            # Flags are defined in kernel source include/uapi/linux/if.h
-            if not int(flags, 16) & 1:
-                return None
-
         if state == 'up':
             self._admin_state_down_cnt -= 1
             if self._admin_state_down_cnt < 1:
@@ -1028,33 +1036,146 @@ class Interface(Control):
             self.add_to_bridge(bridge)
 
         # remove no longer required 802.1ad (Q-in-Q VLANs)
+        ifname = config['ifname']
         for vif_s_id in config.get('vif_s_remove', {}):
-            self.del_vlan(vif_s_id)
+            vif_s_ifname = f'{ifname}.{vif_s_id}'
+            VLANIf(vif_s_ifname).remove()
 
         # create/update 802.1ad (Q-in-Q VLANs)
-        ifname = config['ifname']
-        for vif_s_id, vif_s in config.get('vif_s', {}).items():
-            tmp=get_ethertype(vif_s.get('ethertype', '0x88A8'))
-            s_vlan = self.add_vlan(vif_s_id, ethertype=tmp)
-            vif_s['ifname'] = f'{ifname}.{vif_s_id}'
-            s_vlan.update(vif_s)
+        for vif_s_id, vif_s_config in config.get('vif_s', {}).items():
+            tmp = deepcopy(VLANIf.get_config())
+            tmp['protocol'] = vif_s_config['protocol']
+            tmp['source_interface'] = ifname
+            tmp['vlan_id'] = vif_s_id
+
+            vif_s_ifname = f'{ifname}.{vif_s_id}'
+            vif_s_config['ifname'] = vif_s_ifname
+            s_vlan = VLANIf(vif_s_ifname, **tmp)
+            s_vlan.update(vif_s_config)
 
             # remove no longer required client VLAN (vif-c)
-            for vif_c_id in vif_s.get('vif_c_remove', {}):
-                s_vlan.del_vlan(vif_c_id)
+            for vif_c_id in vif_s_config.get('vif_c_remove', {}):
+                vif_c_ifname = f'{vif_s_ifname}.{vif_c_id}'
+                VLANIf(vif_c_ifname).remove()
 
             # create/update client VLAN (vif-c) interface
-            for vif_c_id, vif_c in vif_s.get('vif_c', {}).items():
-                c_vlan = s_vlan.add_vlan(vif_c_id)
-                vif_c['ifname'] = f'{ifname}.{vif_s_id}.{vif_c_id}'
-                c_vlan.update(vif_c)
+            for vif_c_id, vif_c_config in vif_s_config.get('vif_c', {}).items():
+                tmp = deepcopy(VLANIf.get_config())
+                tmp['source_interface'] = vif_s_ifname
+                tmp['vlan_id'] = vif_c_id
+
+                vif_c_ifname = f'{vif_s_ifname}.{vif_c_id}'
+                vif_c_config['ifname'] = vif_c_ifname
+                c_vlan = VLANIf(vif_c_ifname, **tmp)
+                c_vlan.update(vif_c_config)
 
         # remove no longer required 802.1q VLAN interfaces
         for vif_id in config.get('vif_remove', {}):
-            self.del_vlan(vif_id)
+            vif_ifname = f'{ifname}.{vif_id}'
+            VLANIf(vif_ifname).remove()
 
         # create/update 802.1q VLAN interfaces
-        for vif_id, vif in config.get('vif', {}).items():
-            vlan = self.add_vlan(vif_id)
-            vif['ifname'] = f'{ifname}.{vif_id}'
-            vlan.update(vif)
+        for vif_id, vif_config in config.get('vif', {}).items():
+            tmp = deepcopy(VLANIf.get_config())
+            tmp['source_interface'] = ifname
+            tmp['vlan_id'] = vif_id
+
+            vif_ifname = f'{ifname}.{vif_id}'
+            vif_config['ifname'] = vif_ifname
+            vlan = VLANIf(vif_ifname, **tmp)
+            vlan.update(vif_config)
+
+
+class VLANIf(Interface):
+    """ Specific class which abstracts 802.1q and 802.1ad (Q-in-Q) VLAN interfaces """
+    default = {
+        'type': 'vlan',
+        'source_interface': '',
+        'vlan_id': '',
+        'protocol': '',
+        'ingress_qos': '',
+        'egress_qos': '',
+    }
+
+    options = Interface.options + \
+        ['source_interface', 'vlan_id', 'protocol', 'ingress_qos', 'egress_qos']
+
+    def remove(self):
+        """
+        Remove interface from operating system. Removing the interface
+        deconfigures all assigned IP addresses and clear possible DHCP(v6)
+        client processes.
+
+        Example:
+        >>> from vyos.ifconfig import Interface
+        >>> VLANIf('eth0.10').remove
+        """
+        # Do we have sub interfaces (VLANs)? As interfaces need to be deleted
+        # "in order" starting from Q-in-Q we delete them first.
+        for upper in glob(f'/sys/class/net/{self.ifname}/upper*'):
+            # an upper interface could be named: upper_bond0.1000.1100, thus
+            # we need top drop the upper_ prefix
+            vif_c = os.path.basename(upper)
+            vif_c = vif_c.replace('upper_', '')
+            VLANIf(vif_c).remove()
+
+        super().remove()
+
+    def _create(self):
+        # bail out early if interface already exists
+        if self.exists(f'{self.ifname}'):
+            return
+
+        cmd = 'ip link add link {source_interface} name {ifname} type vlan id {vlan_id}'
+        if self.config['protocol']:
+            cmd += ' protocol {protocol}'
+        if self.config['ingress_qos']:
+            cmd += ' ingress-qos-map {ingress_qos}'
+        if self.config['egress_qos']:
+            cmd += ' egress-qos-map {egress_qos}'
+
+        self._cmd(cmd.format(**self.config))
+
+        # interface is always A/D down. It needs to be enabled explicitly
+        self.set_admin_state('down')
+
+    def set_admin_state(self, state):
+        """
+        Set interface administrative state to be 'up' or 'down'
+
+        Example:
+        >>> from vyos.ifconfig import Interface
+        >>> Interface('eth0.10').set_admin_state('down')
+        >>> Interface('eth0.10').get_admin_state()
+        'down'
+        """
+        # A VLAN interface can only be placed in admin up state when
+        # the lower interface is up, too
+        lower_interface = glob(f'/sys/class/net/{self.ifname}/lower*/flags')[0]
+        with open(lower_interface, 'r') as f:
+            flags = f.read()
+        # If parent is not up - bail out as we can not bring up the VLAN.
+        # Flags are defined in kernel source include/uapi/linux/if.h
+        if not int(flags, 16) & 1:
+            return None
+
+        return super().set_admin_state(state)
+
+    def update(self, config):
+        """ General helper function which works on a dictionary retrived by
+        get_config_dict(). It's main intention is to consolidate the scattered
+        interface setup code and provide a single point of entry when workin
+        on any interface. """
+
+        # call base class first
+        super().update(config)
+
+        # Enable/Disable of an interface must always be done at the end of the
+        # derived class to make use of the ref-counting set_admin_state()
+        # function. We will only enable the interface if 'up' was called as
+        # often as 'down'. This is required by some interface implementations
+        # as certain parameters can only be changed when the interface is
+        # in admin-down state. This ensures the link does not flap during
+        # reconfiguration.
+        state = 'down' if 'disable' in config else 'up'
+        self.set_admin_state(state)

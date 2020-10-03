@@ -27,7 +27,7 @@ import importlib.util
 import zmq
 
 from vyos.defaults import directories
-from vyos.configsource import ConfigSourceString
+from vyos.configsource import ConfigSourceString, ConfigSourceError
 from vyos.config import Config
 from vyos import ConfigError
 
@@ -59,8 +59,7 @@ configd_env_unset_file = os.path.join(directories['data'], 'vyos-configd-env-uns
 # sourced on entering config session
 configd_env_file = '/etc/default/vyos-configd-env'
 
-active_string = ''
-session_string = ''
+session_tty = None
 
 def key_name_from_file_name(f):
     return os.path.splitext(f)[0]
@@ -105,6 +104,14 @@ conf_mode_scripts = dict(zip(imports, modules))
 exclude_set = {key_name_from_file_name(f) for f in filenames if f not in include}
 include_set = {key_name_from_file_name(f) for f in filenames if f in include}
 
+def explicit_print(t, m):
+    try:
+        with open(t, 'w') as f:
+            f.write(m)
+            f.write("\n")
+            f.flush()
+    except Exception:
+        pass
 
 def run_script(script, config) -> int:
     config.set_level([])
@@ -115,6 +122,7 @@ def run_script(script, config) -> int:
         script.apply(c)
     except ConfigError as e:
         logger.critical(e)
+        explicit_print(session_tty, str(e))
         return R_ERROR_COMMIT
     except Exception:
         return R_ERROR_DAEMON
@@ -122,19 +130,44 @@ def run_script(script, config) -> int:
     return R_SUCCESS
 
 def initialization(socket):
+    global session_tty
     # Reset config strings:
     active_string = ''
     session_string = ''
+    # check first for resent init msg, in case of client timeout
+    while True:
+        msg = socket.recv().decode()
+        try:
+            message = json.loads(msg)
+            if message["type"] == "init":
+                resp = "init"
+                socket.send(resp.encode())
+        except:
+            break
+
     # zmq synchronous for ipc from single client:
-    active_string = socket.recv().decode()
+    active_string = msg
     resp = "active"
     socket.send(resp.encode())
     session_string = socket.recv().decode()
     resp = "session"
     socket.send(resp.encode())
+    pid_string = socket.recv().decode()
+    resp = "pid"
+    socket.send(resp.encode())
 
-    configsource = ConfigSourceString(running_config_text=active_string,
-                                      session_config_text=session_string)
+    logger.debug(f"config session pid is {pid_string}")
+    try:
+        session_tty = os.readlink(f"/proc/{pid_string}/fd/1")
+    except FileNotFoundError:
+        session_tty = None
+
+    try:
+        configsource = ConfigSourceString(running_config_text=active_string,
+                                          session_config_text=session_string)
+    except ConfigSourceError as e:
+        logger.debug(e)
+        return None
 
     config = Config(config_source=configsource)
 

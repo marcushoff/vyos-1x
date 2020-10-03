@@ -17,7 +17,6 @@
 import os
 
 from sys import exit
-from copy import deepcopy
 from netifaces import interfaces
 
 from vyos.config import Config
@@ -25,6 +24,7 @@ from vyos.configdict import get_interface_dict
 from vyos.configdict import leaf_node_changed
 from vyos.configverify import verify_address
 from vyos.configverify import verify_bridge_delete
+from vyos.configverify import verify_mtu_ipv6
 from vyos.ifconfig import L2TPv3If
 from vyos.util import check_kmod
 from vyos.validate import is_addr_assigned
@@ -56,10 +56,11 @@ def get_config(config=None):
     # To delete an l2tpv3 interface we need the current tunnel and session-id
     if 'deleted' in l2tpv3:
         tmp = leaf_node_changed(conf, ['tunnel-id'])
-        l2tpv3.update({'tunnel_id': tmp})
+        # leaf_node_changed() returns a list
+        l2tpv3.update({'tunnel_id': tmp[0]})
 
         tmp = leaf_node_changed(conf, ['session-id'])
-        l2tpv3.update({'session_id': tmp})
+        l2tpv3.update({'session_id': tmp[0]})
 
     return l2tpv3
 
@@ -80,6 +81,7 @@ def verify(l2tpv3):
         raise ConfigError('L2TPv3 local-ip address '
                           '"{local_ip}" is not configured!'.format(**l2tpv3))
 
+    verify_mtu_ipv6(l2tpv3)
     verify_address(l2tpv3)
     return None
 
@@ -87,10 +89,11 @@ def generate(l2tpv3):
     return None
 
 def apply(l2tpv3):
-    # L2TPv3 interface needs to be created/deleted on-block, instead of
-    # passing a ton of arguments, I just use a dict that is managed by
-    # vyos.ifconfig
-    conf = deepcopy(L2TPv3If.get_config())
+    # This is a special type of interface which needs additional parameters
+    # when created using iproute2. Instead of passing a ton of arguments,
+    # use a dictionary provided by the interface class which holds all the
+    # options necessary.
+    conf = L2TPv3If.get_config()
 
     # Check if L2TPv3 interface already exists
     if l2tpv3['ifname'] in interfaces():

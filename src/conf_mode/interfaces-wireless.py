@@ -18,7 +18,6 @@ import os
 
 from sys import exit
 from re import findall
-from copy import deepcopy
 from netaddr import EUI, mac_unix_expanded
 
 from vyos.config import Config
@@ -33,6 +32,7 @@ from vyos.configverify import verify_vrf
 from vyos.ifconfig import WiFiIf
 from vyos.template import render
 from vyos.util import call
+from vyos.util import vyos_dict_search
 from vyos import ConfigError
 from vyos import airbag
 airbag.enable()
@@ -74,7 +74,18 @@ def get_config(config=None):
     else:
         conf = Config()
     base = ['interfaces', 'wireless']
+
     wifi = get_interface_dict(conf, base)
+    # defaults include RADIUS server specifics per TAG node which need to be
+    # added to individual RADIUS servers instead - so we can simply delete them
+    if vyos_dict_search('security.wpa.radius.server.port', wifi):
+        del wifi['security']['wpa']['radius']['server']['port']
+        if not len(wifi['security']['wpa']['radius']['server']):
+            del wifi['security']['wpa']['radius']
+        if not len(wifi['security']['wpa']):
+            del wifi['security']['wpa']
+        if not len(wifi['security']):
+            del wifi['security']
 
     if 'security' in wifi and 'wpa' in wifi['security']:
         wpa_cipher = wifi['security']['wpa'].get('cipher')
@@ -98,6 +109,14 @@ def get_config(config=None):
     # Only one wireless interface per phy can be in station mode
     tmp = find_other_stations(conf, base, wifi['ifname'])
     if tmp: wifi['station_interfaces'] = tmp
+
+    # Add individual RADIUS server default values
+    if vyos_dict_search('security.wpa.radius.server', wifi):
+        default_values = defaults(base + ['security', 'wpa', 'radius', 'server'])
+
+        for server in vyos_dict_search('security.wpa.radius.server', wifi):
+            wifi['security']['wpa']['radius']['server'][server] = dict_merge(
+                default_values, wifi['security']['wpa']['radius']['server'][server])
 
     return wifi
 
@@ -213,6 +232,11 @@ def generate(wifi):
             mac.dialect = mac_unix_expanded
             wifi['mac'] = str(mac)
 
+    # XXX: Jinja2 can not operate on a dictionary key when it starts of with a number
+    if '40mhz_incapable' in (vyos_dict_search('capabilities.ht', wifi) or []):
+        wifi['capabilities']['ht']['fourtymhz_incapable'] = wifi['capabilities']['ht']['40mhz_incapable']
+        del wifi['capabilities']['ht']['40mhz_incapable']
+
     # render appropriate new config files depending on access-point or station mode
     if wifi['type'] == 'access-point':
         render(hostapd_conf.format(**wifi), 'wifi/hostapd.conf.tmpl', wifi, trim_blocks=True)
@@ -227,13 +251,15 @@ def apply(wifi):
     if 'deleted' in wifi:
         WiFiIf(interface).remove()
     else:
-        # WiFi interface needs to be created on-block (e.g. mode or physical
-        # interface) instead of passing a ton of arguments, I just use a dict
-        # that is managed by vyos.ifconfig
-        conf = deepcopy(WiFiIf.get_config())
+        # This is a special type of interface which needs additional parameters
+        # when created using iproute2. Instead of passing a ton of arguments,
+        # use a dictionary provided by the interface class which holds all the
+        # options necessary.
+        conf = WiFiIf.get_config()
 
         # Assign WiFi instance configuration parameters to config dict
         conf['phy'] = wifi['physical_device']
+        conf['wds'] = 'on' if 'wds' in wifi else 'off'
 
         # Finally create the new interface
         w = WiFiIf(interface, **conf)
