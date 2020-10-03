@@ -15,11 +15,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
 from argparse import ArgumentParser
+from time import sleep
 
 from vyos.util import cmd
 from vyos.zerotier import networks
 
+dirname = '/var/lib/zerotier-one/'
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -40,6 +43,8 @@ if __name__ == '__main__':
             cmd('systemctl stop zerotier-one.service')
     elif args.join:
         cmd('systemctl start zerotier-one.service')
+        while len(os.listdir(dirname)) < 10:
+            sleep(0.250) # 250ms
         out = cmd(f'sudo zerotier-cli join {args.join}')
         if out:
             print(out)
