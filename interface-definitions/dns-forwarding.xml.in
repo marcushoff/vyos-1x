@@ -128,24 +128,7 @@
                   </constraint>
                 </properties>
               </leafNode>
-              <leafNode name="listen-address">
-                <properties>
-                  <help>Addresses to listen for DNS queries [REQUIRED]</help>
-                  <valueHelp>
-                    <format>ipv4</format>
-                    <description>Domain Name Server (DNS) IPv4 address</description>
-                  </valueHelp>
-                  <valueHelp>
-                    <format>ipv6</format>
-                    <description>Domain Name Server (DNS) IPv6 address</description>
-                  </valueHelp>
-                  <multi/>
-                  <constraint>
-                    <validator name="ipv4-address"/>
-                    <validator name="ipv6-address"/>
-                  </constraint>
-                </properties>
-              </leafNode>
+              #include <include/listen-address.xml.i>
               <leafNode name="negative-ttl">
                 <properties>
                   <help>Maximum amount of time negative entries are cached (default: 3600)</help>
@@ -176,6 +159,27 @@
                     <validator name="ipv6-address"/>
                   </constraint>
                 </properties>
+              </leafNode>
+              <leafNode name="source-address">
+                <properties>
+                  <help>Local addresses from which to send DNS queries.
+                If unspecified, the querier will use any available address on
+                the outbound interface.</help>
+                  <valueHelp>
+                    <format>ipv4</format>
+                    <description>IPv4 address from which to send traffic</description>
+                  </valueHelp>
+                  <valueHelp>
+                    <format>ipv6</format>
+                    <description>IPv6 address from which to send traffic</description>
+                  </valueHelp>
+                  <multi/>
+                  <constraint>
+                    <validator name="ipv4-address"/>
+                    <validator name="ipv6-address"/>
+                  </constraint>
+                </properties>
+                <defaultValue>0.0.0.0 ::</defaultValue>
               </leafNode>
               <leafNode name="system">
                 <properties>

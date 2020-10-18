@@ -228,7 +228,7 @@ class BasicInterfaceTest:
                         self._mtu_test(vif)
 
         def test_ip_options(self):
-            """ test IP options like arp """
+            """ Test interface base IPv4 options """
             if not self._test_ip:
                 return None
 
@@ -241,6 +241,7 @@ class BasicInterfaceTest:
                 # Options
                 self.session.set(path + ['ip', 'arp-cache-timeout', arp_tmo])
                 self.session.set(path + ['ip', 'disable-arp-filter'])
+                self.session.set(path + ['ip', 'disable-forwarding'])
                 self.session.set(path + ['ip', 'enable-arp-accept'])
                 self.session.set(path + ['ip', 'enable-arp-announce'])
                 self.session.set(path + ['ip', 'enable-arp-ignore'])
@@ -266,6 +267,9 @@ class BasicInterfaceTest:
                 tmp = read_file(f'/proc/sys/net/ipv4/conf/{interface}/arp_ignore')
                 self.assertEqual('1', tmp)
 
+                tmp = read_file(f'/proc/sys/net/ipv4/conf/{interface}/forwarding')
+                self.assertEqual('0', tmp)
+
                 tmp = read_file(f'/proc/sys/net/ipv4/conf/{interface}/proxy_arp')
                 self.assertEqual('1', tmp)
 
@@ -274,3 +278,27 @@ class BasicInterfaceTest:
 
                 tmp = read_file(f'/proc/sys/net/ipv4/conf/{interface}/rp_filter')
                 self.assertEqual('2', tmp)
+
+        def test_ipv6_options(self):
+            """ Test interface base IPv6 options """
+            if not self._test_ipv6:
+                return None
+
+            for interface in self._interfaces:
+                dad_transmits = '10'
+                path = self._base_path + [interface]
+                for option in self._options.get(interface, []):
+                    self.session.set(path + option.split())
+
+                # Options
+                self.session.set(path + ['ipv6', 'disable-forwarding'])
+                self.session.set(path + ['ipv6', 'dup-addr-detect-transmits', dad_transmits])
+
+            self.session.commit()
+
+            for interface in self._interfaces:
+                tmp = read_file(f'/proc/sys/net/ipv6/conf/{interface}/forwarding')
+                self.assertEqual('0', tmp)
+
+                tmp = read_file(f'/proc/sys/net/ipv6/conf/{interface}/dad_transmits')
+                self.assertEqual(dad_transmits, tmp)

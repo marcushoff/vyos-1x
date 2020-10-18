@@ -12,14 +12,7 @@
               <help>Remote access PPTP VPN</help>
             </properties>
             <children>
-              <leafNode name="mtu">
-                <properties>
-                  <help>Maximum Transmission Unit (MTU)</help>
-                  <constraint>
-                    <validator name="numeric" argument="--range 128-16384"/>
-                  </constraint>
-                </properties>
-              </leafNode>
+              #include <include/accel-mtu-128-16384.xml.i>
               <leafNode name="outside-address">
                 <properties>
                   <help>External IP address to which VPN clients will connect</help>
@@ -47,22 +40,7 @@
                   <help>Pool of client IP addresses (must be within a /24)</help>
                 </properties>
                 <children>
-                  <leafNode name="start">
-                    <properties>
-                      <help>First IP address in the pool (will be used as gateway address)</help>
-                      <constraint>
-                        <validator name="ipv4-address"/>
-                      </constraint>
-                    </properties>
-                  </leafNode>
-                  <leafNode name="stop">
-                    <properties>
-                      <help>Last IP address in the pool</help>
-                      <constraint>
-                        <validator name="ipv4-address"/>
-                      </constraint>
-                    </properties>
-                  </leafNode>
+                  #include <include/accel-client-ip-pool-start-stop.xml.i>
                 </children>
               </node>
               #include <include/accel-gateway-address.xml.i>

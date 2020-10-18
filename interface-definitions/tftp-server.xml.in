@@ -22,34 +22,18 @@
           </leafNode>
           <leafNode name="port">
             <properties>
-              <help>Port for TFTP service</help>
+              <help>Port number used to listen for connections</help>
               <valueHelp>
                 <format>1-65535</format>
-                <description>Numeric IP port (default: 69)</description>
+                <description>Numeric IP port</description>
               </valueHelp>
               <constraint>
                 <validator name="numeric" argument="--range 1-65535"/>
               </constraint>
             </properties>
+            <defaultValue>69</defaultValue>
           </leafNode>
-          <leafNode name="listen-address">
-            <properties>
-              <help>Addresses for TFTP server to listen [REQUIRED]</help>
-              <valueHelp>
-                <format>ipv4</format>
-                <description>TFTP IPv4 listen address</description>
-              </valueHelp>
-              <valueHelp>
-                <format>ipv6</format>
-                <description>TFTP IPv6 listen address</description>
-              </valueHelp>
-              <multi/>
-              <constraint>
-                <validator name="ipv4-address"/>
-                <validator name="ipv6-address"/>
-              </constraint>
-            </properties>
-          </leafNode>
+          #include <include/listen-address.xml.i>
         </children>
       </node>
     </children>

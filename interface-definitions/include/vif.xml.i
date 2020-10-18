@@ -1,3 +1,4 @@
+<!-- included start from vif.xml.i -->
 <tagNode name="vif">
   <properties>
     <help>Virtual Local Area Network (VLAN) ID</help>
@@ -46,6 +47,7 @@
       <children>
         #include <include/interface-arp-cache-timeout.xml.i>
         #include <include/interface-disable-arp-filter.xml.i>
+        #include <include/interface-disable-forwarding.xml.i>
         #include <include/interface-enable-arp-accept.xml.i>
         #include <include/interface-enable-arp-announce.xml.i>
         #include <include/interface-enable-arp-ignore.xml.i>
@@ -64,3 +66,4 @@
     #include <include/interface-mtu-68-9000.xml.i>
   </children>
 </tagNode>
+<!-- included end -->
