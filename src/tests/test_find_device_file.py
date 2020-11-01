@@ -15,16 +15,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from unittest import TestCase
-from vyos.util import mangle_dict_keys
+from vyos.util import find_device_file
 
-
-class TestVyOSUtil(TestCase):
+class TestDeviceFile(TestCase):
+    """ used to find USB devices on target """
     def setUp(self):
         pass
 
-    def test_key_mangline(self):
-        data = {"foo-bar": {"baz-quux": None}}
-        expected_data = {"foo_bar": {"baz_quux": None}}
-        new_data = mangle_dict_keys(data, '-', '_')
-        self.assertEqual(new_data, expected_data)
+    def test_null(self):
+        self.assertEqual(find_device_file('null'), '/dev/null')
 
+    def test_zero(self):
+        self.assertEqual(find_device_file('zero'), '/dev/zero')
+
+    def test_input_event(self):
+        self.assertEqual(find_device_file('event0'), '/dev/input/event0')
+
+    def test_non_existing(self):
+        self.assertFalse(find_device_file('vyos'))

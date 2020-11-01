@@ -100,7 +100,8 @@ def get_config(config=None):
     if conf.exists(['authentication', 'mode']):
         l2tp['auth_mode'] = conf.return_value(['authentication', 'mode'])
 
-    if conf.exists(['authentication', 'protocols']):
+    if conf.exists(['authentication', 'require']):
+        l2tp['auth_proto'] = []
         auth_mods = {
             'pap': 'auth_pap',
             'chap': 'auth_chap_md5',
@@ -108,7 +109,7 @@ def get_config(config=None):
             'mschap-v2': 'auth_mschap_v2'
         }
 
-        for proto in conf.return_values(['authentication', 'protocols']):
+        for proto in conf.return_values(['authentication', 'require']):
             l2tp['auth_proto'].append(auth_mods[proto])
 
     if conf.exists(['authentication', 'mppe']):
@@ -160,6 +161,9 @@ def get_config(config=None):
             }
 
             conf.set_level(base_path + ['authentication', 'radius', 'server', server])
+
+            if conf.exists(['disable-accounting']):
+                radius['acct_port'] = '0'
 
             if conf.exists(['fail-time']):
                 radius['fail_time'] = conf.return_value(['fail-time'])
