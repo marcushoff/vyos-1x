@@ -38,11 +38,11 @@ class WirelessInterfaceTest(BasicInterfaceTest.BaseTest):
         self._options = {
             'wlan0':  ['physical-device phy0', 'ssid VyOS-WIFI-0',
                        'type station', 'address 192.0.2.1/30'],
-            'wlan1':  ['physical-device phy0', 'ssid VyOS-WIFI-1', 'country-code SE',
+            'wlan1':  ['physical-device phy0', 'ssid VyOS-WIFI-1', 'country-code se',
                        'type access-point', 'address 192.0.2.5/30', 'channel 0'],
             'wlan10': ['physical-device phy1', 'ssid VyOS-WIFI-2',
                        'type station', 'address 192.0.2.9/30'],
-            'wlan11': ['physical-device phy1', 'ssid VyOS-WIFI-3', 'country-code SE',
+            'wlan11': ['physical-device phy1', 'ssid VyOS-WIFI-3', 'country-code se',
                        'type access-point', 'address 192.0.2.13/30', 'channel 0'],
         }
         self._interfaces = list(self._options)
@@ -68,13 +68,10 @@ class WirelessInterfaceTest(BasicInterfaceTest.BaseTest):
         interface = 'wlan0'
         phy = 'phy0'
         ssid = 'ssid'
-        channel = '1'
+        channel = '0'
 
-        self.session.set(self._base_path + [interface, 'physical-device', phy])
         self.session.set(self._base_path + [interface, 'ssid', ssid])
         self.session.set(self._base_path + [interface, 'type', 'access-point'])
-        self.session.set(self._base_path + [interface, 'channel', channel])
-        self.session.set(self._base_path + [interface, 'country-code', 'SE'])
         # auto-powersave is special
         self.session.set(self._base_path + [interface, 'capabilities', 'ht', 'auto-powersave'])
 
@@ -152,7 +149,7 @@ class WirelessInterfaceTest(BasicInterfaceTest.BaseTest):
         channel = '0'
         wpa_key = 'VyOSVyOSVyOS'
         mode = 'n'
-        country = 'DE'
+        country = 'de'
 
         self.session.set(self._base_path + [interface, 'physical-device', phy])
         self.session.set(self._base_path + [interface, 'type', 'access-point'])
